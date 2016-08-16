@@ -5,7 +5,9 @@ CC         = $(CROSS_COMPILE)clang
 CXX        = $(CROSS_COMPILE)clang++
 LD_LTO     = $(CROSS_COMPILE)llvm-ld
 else
+ifeq ($(CC), )
 CC         = $(CROSS_COMPILE)gcc
+endif
 CXX        = $(CROSS_COMPILE)g++
 LD_LTO     = $(CROSS_COMPILE)ld
 endif
