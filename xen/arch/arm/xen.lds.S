@@ -5,6 +5,7 @@
 #include <xen/cache.h>
 #include <asm/page.h>
 #include <asm/percpu.h>
+#include <asm/arm64/image.h>
 #undef ENTRY
 #undef ALIGN
 
@@ -211,6 +212,10 @@ SECTIONS
   /* Section for the device tree blob (if any). */
   _sdtb = .;
   .dtb : { *(.dtb) } :text
+#endif
+
+#if defined(__aarch64__)
+  HEAD_SYMBOLS
 #endif
 
   /* Sections to be discarded */
