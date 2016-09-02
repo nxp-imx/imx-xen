@@ -47,7 +47,7 @@ static int imx8qm_specific_mapping(struct domain *d)
 
     for (i = 0; i < ARRAY_SIZE(lpcg_array); i++)
     {
-        map_mmio_regions(d, _gfn(lpcg_array[i]), 16,
+        map_mmio_regions(d, _gfn(paddr_to_pfn(lpcg_array[i])), 16,
 			 _mfn(paddr_to_pfn(lpcg_array[i])));
     }
 
