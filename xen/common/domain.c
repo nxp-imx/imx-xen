@@ -376,6 +376,8 @@ struct domain *domain_create(domid_t domid, unsigned int domcr_flags,
             goto fail;
     }
 
+    printk("-----------%d\n", poolid);
+
     if ( (err = arch_domain_create(d, domcr_flags, config)) != 0 )
         goto fail;
     init_status |= INIT_arch;

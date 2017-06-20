@@ -13,6 +13,7 @@
 #include <xen/init.h>
 #include <xen/lib.h>
 #include <xen/sched.h>
+#include <xen/sched-if.h>
 
 #include <asm/processor.h>
 
@@ -56,6 +57,14 @@ void identify_cpu(struct cpuinfo_arm *c)
         c->isa32.bits[3] = READ_SYSREG32(ID_ISAR3_EL1);
         c->isa32.bits[4] = READ_SYSREG32(ID_ISAR4_EL1);
         c->isa32.bits[5] = READ_SYSREG32(ID_ISAR5_EL1);
+}
+
+int arch_cpu_cpupool_compatible(struct cpupool *c, int cpu)
+{
+    if ((c->midr == -1) || (c->midr == cpu_data[cpu].midr.bits))
+        return 0;
+
+    return -EINVAL;
 }
 
 /*

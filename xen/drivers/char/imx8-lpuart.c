@@ -256,7 +256,7 @@ static int __init imx8_lpuart_init(struct dt_device_node *dev,
     uart->baud = 115200;
     /* For emulation */
 #ifdef CONFIG_IMX8_ZEBU
-    uart->baud = 1250000;
+    uart->baud = 4000000;
 #else
     uart->baud = 115200;
 #endif

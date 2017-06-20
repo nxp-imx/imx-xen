@@ -4,6 +4,7 @@
 #include <xen/mm.h>
 #include <xen/domain_page.h>
 #include <xen/sched.h>
+#include <xen/sched-if.h>
 #include <asm/irq.h>
 #include <asm/regs.h>
 #include <xen/errno.h>
@@ -67,10 +68,17 @@ struct map_range_data
 
 struct vcpu *__init alloc_dom0_vcpu0(struct domain *dom0)
 {
-    if ( opt_dom0_max_vcpus == 0 )
-        opt_dom0_max_vcpus = num_online_cpus();
+    if ( opt_dom0_max_vcpus == 0 ) {
+        opt_dom0_max_vcpus = cpumask_weight(cpupool0->cpu_valid);
+    }
     if ( opt_dom0_max_vcpus > MAX_VIRT_CPUS )
         opt_dom0_max_vcpus = MAX_VIRT_CPUS;
+
+    printk("opt_dom0_max_vcpus %d\n", opt_dom0_max_vcpus);
+#if 0
+    if (arm_big_little)
+        opt_dom0_max_vcpus = cpupool0->num_cpus;
+#endif
 
     dom0->vcpu = xzalloc_array(struct vcpu *, opt_dom0_max_vcpus);
     if ( !dom0->vcpu )
