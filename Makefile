@@ -7,7 +7,7 @@
 all: dist
 
 -include config/Toplevel.mk
-SUBSYSTEMS?=xen tools stubdom docs
+SUBSYSTEMS?=xen tools stubdom
 TARGS_DIST=$(patsubst %, dist-%, $(SUBSYSTEMS))
 TARGS_INSTALL=$(patsubst %, install-%, $(SUBSYSTEMS))
 TARGS_UNINSTALL=$(patsubst %, uninstall-%, $(SUBSYSTEMS))
