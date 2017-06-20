@@ -28,7 +28,7 @@
 #include <asm/imx8-lpuart.h>
 #include <asm/io.h>
 
-#define CONFIG_IMX8_ZEBU
+//#define CONFIG_IMX8_ZEBU
 #define imx8_lpuart_read(uart, off)       readl((uart)->regs + off)
 #define imx8_lpuart_write(uart, off, val) writel((val), (uart)->regs + off)
 
@@ -242,8 +242,12 @@ static int __init imx8_lpuart_init(struct dt_device_node *dev,
     res = dt_property_read_u32(dev, "clock-frequency", &clkspec);
     if ( !res )
     {
-        printk("imx-uart: Unable to retrieve the clock frequency\n");
-        return -EINVAL;
+	res = dt_property_read_u32(dev, "assigned-clock-rates", &clkspec);
+	if ( !res )
+	{
+		printk("imx-uart: Unable to retrieve the clock frequency\n");
+		return -EINVAL;
+	}
     }
 #endif
 
