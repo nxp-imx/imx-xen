@@ -20,6 +20,7 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/macros.h>
 #include <asm/page.h>
 #include <asm/asm_defns.h>
 #include <asm/early_printk.h>
