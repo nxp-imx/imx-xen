@@ -1415,7 +1415,7 @@ static int arm_smmu_master_configure_smrs(struct arm_smmu_device *smmu,
 
 		smrs[i] = (struct arm_smmu_smr) {
 			.idx	= idx,
-			.mask	= 0, /* We don't currently share SMRs */
+			.mask	= 0x7f80, /* We don't currently share SMRs */
 			.id	= cfg->streamids[i],
 		};
 	}
@@ -2058,7 +2058,8 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	/* Enable client access, but bypass when no mapping is found */
 	reg &= ~(sCR0_CLIENTPD | sCR0_USFCFG);
 	/* Xen: Unlike Linux, generate a fault when no mapping is found */
-	reg |= sCR0_USFCFG;
+	/* Need to disable this, otherwise hang 8QM */
+	/* reg |= sCR0_USFCFG; */
 
 	/* Disable forced broadcasting */
 	reg &= ~sCR0_FB;
