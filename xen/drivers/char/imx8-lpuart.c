@@ -229,7 +229,9 @@ static int __init imx8_lpuart_init(struct dt_device_node *dev,
     int res;
     u64 addr, size;
 
+#ifdef CONFIG_EARLY_PRINTK
     dprintk(XENLOG_ERR, "xx %x\n", EARLY_UART_BASE_ADDRESS);
+#endif
     if ( strcmp(config, "") )
         printk("WARNING: UART configuration is not supported\n");
 
