@@ -99,7 +99,7 @@ int libxl__get_acpi_size(libxl__gc *gc,
                          const libxl_domain_build_info *info,
                          uint64_t *out)
 {
-    uint64_t size;
+    uint64_t size = 0;
     int rc = 0;
 
 
@@ -124,7 +124,7 @@ static int libxl__allocate_acpi_tables(libxl__gc *gc,
                                        struct acpitable acpitables[])
 {
     int rc;
-    size_t size;
+    size_t size = 0;
 
     acpitables[RSDP].addr = GUEST_ACPI_BASE;
     acpitables[RSDP].size = sizeof(struct acpi_table_rsdp);
