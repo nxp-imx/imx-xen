@@ -1096,6 +1096,10 @@ static int handle_device(struct domain *d, struct dt_device_node *dev,
 
     dt_dprintk("%s passthrough = %d nirq = %d naddr = %u\n",
                dt_node_full_name(dev), need_mapping, nirq, naddr);
+    if (!strcmp("/imx8_gpu_ss", dt_node_full_name(dev))) {
+        printk(XENLOG_WARNING "HACK: skip /imx8_gpu_ss setup!\n");
+        return 0;
+    }
 
     if ( dt_device_is_protected(dev) && need_mapping )
     {
