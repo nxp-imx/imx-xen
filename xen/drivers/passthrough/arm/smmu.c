@@ -373,6 +373,12 @@ static struct iommu_group *iommu_group_get(struct device *dev)
 #define sCR0_BSU_SHIFT			14
 #define sCR0_BSU_MASK			0x3
 
+#define ARM_SMMU_GR0_sACR		0x10
+#define sACR_S2CRB_TLBEN                (1 << 10)
+#define sACR_MMUDISB_TLBEN              (1 << 9)
+#define sACR_SMTNMB_TLBEN               (1 << 8)
+#define sACR_IPA2PA_CEN                 (1 << 4)
+
 /* Identification registers */
 #define ARM_SMMU_GR0_ID0		0x20
 #define ARM_SMMU_GR0_ID1		0x24
@@ -2070,6 +2076,13 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	/* Push the button */
 	arm_smmu_tlb_sync(smmu);
 	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
+
+	/* Enable SMTNMB_TLBEN*/
+	reg = readl(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sACR);
+	dev_notice(smmu->dev, "read init sACR=%08x\n", reg);
+	reg |= sACR_SMTNMB_TLBEN;
+	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sACR);
+	dev_notice(smmu->dev, "wrote sACR=%08x\n", reg);
 }
 
 static int arm_smmu_id_size_to_bits(int size)
