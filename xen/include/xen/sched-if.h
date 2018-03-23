@@ -193,9 +193,6 @@ struct cpupool
     unsigned int     n_dom;
     struct scheduler *sched;
     atomic_t         refcnt;
-#ifdef CONFIG_ARM
-    uint32_t         midr;
-#endif
 };
 
 #define cpupool_online_cpumask(_pool) \
@@ -274,7 +271,5 @@ affinity_balance_cpumask(const struct vcpu *v, int step, cpumask_t *mask)
     else /* step == BALANCE_HARD_AFFINITY */
         cpumask_copy(mask, v->cpu_hard_affinity);
 }
-
-int arch_cpu_cpupool_compatible(struct cpupool *c, int cpu);
 
 #endif /* __XEN_SCHED_IF_H__ */

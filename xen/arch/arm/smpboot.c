@@ -38,9 +38,6 @@ cpumask_t cpu_online_map;
 cpumask_t cpu_present_map;
 cpumask_t cpu_possible_map;
 
-#if 0
-unsigned int arm_big_little;
-#endif
 struct cpuinfo_arm cpu_data[NR_CPUS];
 
 /* CPU logical map: map xen cpuid to an MPIDR */
@@ -440,12 +437,6 @@ int __cpu_up(unsigned int cpu)
         return -EIO;
     }
 
-#if 0
-    if (boot_cpu_data.midr.bits != cpu_data[cpu].midr.bits)
-        arm_big_little = 1;
-
-    printk("arm_big_little ---------- %d\n", arm_big_little);
-#endif
     return 0;
 }
 

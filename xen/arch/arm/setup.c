@@ -825,10 +825,6 @@ void __init start_xen(unsigned long boot_phys_offset,
 
     do_presmp_initcalls();
 
-#if 0
-    arm_big_little = 0;
-#endif
-
     for_each_present_cpu ( i )
     {
         if ( (num_online_cpus() < cpus) && !cpu_online(i) )

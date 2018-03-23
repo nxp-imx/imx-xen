@@ -36,7 +36,7 @@ static DEFINE_SPINLOCK(cpupool_lock);
 
 DEFINE_PER_CPU(struct cpupool *, cpupool);
 
-#define cpupool_dprintk(fmt, args...) printk(XENLOG_DEBUG fmt, ## args)
+#define cpupool_dprintk(x...) ((void)0)
 
 static struct cpupool *alloc_cpupool_struct(void)
 {
@@ -180,9 +180,6 @@ static struct cpupool *cpupool_create(
         }
     }
 
-#ifdef CONFIG_ARM
-    c->midr = -1;
-#endif
     *q = c;
 
     spin_unlock(&cpupool_lock);
@@ -290,13 +287,6 @@ static int cpupool_assign_cpu_locked(struct cpupool *c, unsigned int cpu)
         domain_update_node_affinity(d);
     }
     rcu_read_unlock(&domlist_read_lock);
-
-#ifdef CONFIG_ARM
-    if (c->midr == -1)
-        c->midr = cpu_data[cpu].midr.bits;
-
-    printk("%s midr ==== %x cpu %d\n", __func__, c->midr, cpu);
-#endif
 
     return 0;
 }
@@ -508,8 +498,6 @@ static int cpupool_cpu_add(unsigned int cpu)
         {
             if ( cpumask_test_cpu(cpu, (*c)->cpu_suspended ) )
             {
-                if (arch_cpu_cpupool_compatible(*c, cpu))
-		    continue;
                 ret = cpupool_assign_cpu_locked(*c, cpu);
                 if ( ret )
                     goto out;
@@ -533,15 +521,7 @@ static int cpupool_cpu_add(unsigned int cpu)
          * we add it to pool0, as it certainly was there when hot-unplagged
          * (or unplugging would have failed) and that is the default behavior
          * anyway.
-	 *
-	 * For ARM Big.Little SoC, we can need to check whether the CPU
-	 * is compatible with cpupool0. Need to make sure all the CPUs
-	 * in cpupool0 has same MIDR.
          */
-        if (arch_cpu_cpupool_compatible(cpupool0, cpu)) {
-		ret = 0;
-		goto out;
-	}
         ret = cpupool_assign_cpu_locked(cpupool0, cpu);
     }
  out:
@@ -722,7 +702,6 @@ int cpupool_do_sysctl(struct xen_sysctl_cpupool_op *op)
         }
         cpupool_dprintk("cpupool move_domain(dom=%d)->pool=%d\n",
                         d->domain_id, op->cpupool_id);
-        printk("cpupool move_domain(dom=%d)->pool=%d\n", d->domain_id, op->cpupool_id);
         ret = -ENOENT;
         spin_lock(&cpupool_lock);
 

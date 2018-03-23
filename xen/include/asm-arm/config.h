@@ -195,9 +195,6 @@
 extern unsigned long xen_phys_start;
 extern unsigned long xenheap_phys_end;
 extern unsigned long frametable_virt_end;
-#if 0
-extern unsigned int arm_big_little;
-#endif
 #endif
 
 #define watchdog_disable() ((void)0)

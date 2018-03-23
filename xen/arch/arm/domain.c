@@ -17,7 +17,6 @@
 #include <xen/lib.h>
 #include <xen/livepatch.h>
 #include <xen/sched.h>
-#include <xen/sched-if.h>
 #include <xen/softirq.h>
 #include <xen/wait.h>
 
@@ -181,7 +180,7 @@ static void ctxt_switch_to(struct vcpu *n)
 
     p2m_restore_state(n);
 
-    WRITE_SYSREG32(n->arch.vpidr, VPIDR_EL2);
+    WRITE_SYSREG32(n->domain->arch.vpidr, VPIDR_EL2);
     WRITE_SYSREG(n->arch.vmpidr, VMPIDR_EL2);
 
     /* VGIC */
@@ -545,9 +544,6 @@ int vcpu_initialise(struct vcpu *v)
 
     v->arch.hcr_el2 = get_default_hcr_flags();
 
-    v->arch.vpidr = v->domain->cpupool->midr;
-    printk("---- %s %x\n", __func__, v->arch.vpidr);
-
     processor_vcpu_initialise(v);
 
     if ( (rc = vcpu_vgic_init(v)) != 0 )
@@ -601,9 +597,7 @@ int arch_domain_create(struct domain *d, unsigned int domcr_flags,
         goto fail;
 
     /* Default the virtual ID to match the physical */
-    //d->arch.vpidr = d->cpupool->midr;
     d->arch.vpidr = boot_cpu_data.midr.bits;
-    printk("================ %x\n", d->arch.vpidr);
 
     clear_page(d->shared_info);
     share_xen_page_with_guest(

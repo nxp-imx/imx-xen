@@ -197,12 +197,6 @@ struct arch_vcpu
     uint32_t esr;
 #endif
 
-    /*
-     * Holds the value of the Virtualization Processor ID.
-     * This is the value returned by Non-secure EL1 reads of MIDR_EL1.
-     */
-    uint32_t vpidr;
-
     uint32_t ifsr; /* 32-bit guests only */
     uint32_t afsr0, afsr1;
 
