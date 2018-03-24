@@ -26,6 +26,10 @@ struct platform_desc {
     void (*reset)(void);
     /* Platform power-off */
     void (*poweroff)(void);
+    /* Platform specific HVC handler.
+     * Returns true if the call was handled and false if not.
+     */
+    bool (*handle_sip)(struct cpu_user_regs *regs);
     /*
      * Platform quirks
      * Defined has a function because a platform can support multiple

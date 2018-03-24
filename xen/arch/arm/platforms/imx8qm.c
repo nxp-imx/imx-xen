@@ -76,12 +76,28 @@ static void imx8qm_system_off(void)
   /* Add PSCI interface */
 }
 
+static bool imx8qm_handle_sip(struct cpu_user_regs *regs)
+{
+    register_t ret[4] = { 0 };
+
+    call_smcc64(regs->x0, regs->x1, regs->x2, regs->x3, regs->x4,
+		regs->x5, regs->x6, ret);
+
+    regs->x0 = ret[0];
+    regs->x1 = ret[1];
+    regs->x2 = ret[2];
+    regs->x3 = ret[3];
+
+    return true;
+}
+
 PLATFORM_START(imx8qm, "i.MX 8")
     .compatible = imx8qm_dt_compat,
     .init = imx8qm_system_init,
     .specific_mapping = imx8qm_specific_mapping,
     .reset = imx8qm_system_reset,
     .poweroff = imx8qm_system_off,
+    .handle_sip = imx8qm_handle_sip,
 PLATFORM_END
 
 /*

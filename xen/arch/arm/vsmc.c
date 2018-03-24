@@ -177,6 +177,7 @@ static bool handle_sssc(struct cpu_user_regs *regs)
  * returns true if that was valid SMCCC call (even if function number
  * was unknown).
  */
+extern bool platform_handle_sip(struct cpu_user_regs *regs);
 static bool vsmccc_handle_call(struct cpu_user_regs *regs)
 {
     bool handled = false;
@@ -234,6 +235,9 @@ static bool vsmccc_handle_call(struct cpu_user_regs *regs)
             break;
         case ARM_SMCCC_OWNER_STANDARD:
             handled = handle_sssc(regs);
+            break;
+        case ARM_SMCCC_OWNER_SIP:
+            handled = platform_handle_sip(regs);
             break;
         }
     }
