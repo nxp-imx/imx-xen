@@ -147,6 +147,17 @@ bool platform_device_is_blacklisted(const struct dt_device_node *node)
     return (dt_match_node(blacklist, node) != NULL);
 }
 
+bool platform_handle_sip(struct cpu_user_regs *regs)
+{
+    if (is_hardware_domain(current->domain))
+    {
+        if (platform && platform->handle_sip)
+            return platform->handle_sip(regs);
+    }
+
+    return false;
+}
+
 /*
  * Local variables:
  * mode: C
