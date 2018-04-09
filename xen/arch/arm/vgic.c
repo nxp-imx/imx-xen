@@ -223,6 +223,10 @@ int vcpu_vgic_init(struct vcpu *v)
     INIT_LIST_HEAD(&v->arch.vgic.lr_pending);
     spin_lock_init(&v->arch.vgic.lock);
 
+#ifdef CONFIG_HAS_GICV3
+    v->arch.gic.v3.sre_el1 = READ_SYSREG32(ICC_SRE_EL1);
+#endif
+
     return 0;
 }
 
