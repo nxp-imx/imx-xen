@@ -120,13 +120,13 @@ static void place_modules(struct kernel_info *info,
     info->initrd_paddr = info->dtb_paddr + dtb_len;
 }
 
-static paddr_t kernel_zimage_place(struct kernel_info *info)
+paddr_t kernel_zimage_place(struct kernel_info *info)
 {
     paddr_t load_addr;
 
 #ifdef CONFIG_ARM_64
     if ( info->type == DOMAIN_64BIT )
-        return info->mem.bank[0].start + info->zimage.text_offset;
+        return info->mem.bank[0].start + info->zimage.load_offset + info->zimage.text_offset;
 #endif
 
     /*
@@ -237,6 +237,7 @@ static int kernel_uimage_probe(struct kernel_info *info,
 
     info->entry = info->zimage.start;
     info->load = kernel_zimage_load;
+    info->type = ZIMAGE;
 
 #ifdef CONFIG_ARM_64
     switch ( uimage.arch )
@@ -369,6 +370,8 @@ static int kernel_zimage64_probe(struct kernel_info *info,
     info->zimage.kernel_addr = addr;
     info->zimage.len = end - start;
     info->zimage.text_offset = zimage.text_offset;
+    info->zimage.load_offset = 0;
+    info->type = ZIMAGE;
 
     info->load = kernel_zimage_load;
 
@@ -422,6 +425,7 @@ static int kernel_zimage32_probe(struct kernel_info *info,
     info->zimage.len = end - start;
 
     info->load = kernel_zimage_load;
+    info->type = ZIMAGE;
 
 #ifdef CONFIG_ARM_64
     info->type = DOMAIN_32BIT;
@@ -462,6 +466,7 @@ static int kernel_elf_probe(struct kernel_info *info,
 
     info->elf.kernel_order = get_order_from_bytes(size);
     info->elf.kernel_img = alloc_xenheap_pages(info->elf.kernel_order, 0);
+    info->type = ELF;
     if ( info->elf.kernel_img == NULL )
         panic("Cannot allocate temporary buffer for kernel");
 

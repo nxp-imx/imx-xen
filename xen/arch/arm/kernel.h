@@ -10,6 +10,11 @@
 #include <xen/device_tree.h>
 #include <asm/setup.h>
 
+enum image_type{
+    ZIMAGE,
+    ELF,
+};
+
 struct kernel_info {
 #ifdef CONFIG_ARM_64
     enum domain_type type;
@@ -33,12 +38,15 @@ struct kernel_info {
 
     /* loader to use for this kernel */
     void (*load)(struct kernel_info *info);
+    /* Image type is zimage or elf */
+    enum image_type image_type;
     /* loader specific state */
     union {
         struct {
             paddr_t kernel_addr;
             paddr_t len;
 #ifdef CONFIG_ARM_64
+            paddr_t load_offset;
             paddr_t text_offset; /* 64-bit Image only */
 #endif
             paddr_t start; /* 32-bit zImage only */
@@ -75,6 +83,8 @@ int kernel_probe(struct kernel_info *info);
  *  ->initrd_paddr
  */
 void kernel_load(struct kernel_info *info);
+
+paddr_t kernel_zimage_place(struct kernel_info *info);
 
 #endif /* #ifdef __ARCH_ARM_KERNEL_H__ */
 

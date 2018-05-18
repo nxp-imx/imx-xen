@@ -12,6 +12,7 @@
 #include <xen/guest_access.h>
 #include <xen/iocap.h>
 #include <xen/acpi.h>
+#include <xen/sizes.h>
 #include <xen/warning.h>
 #include <acpi/actables.h>
 #include <asm/device.h>
@@ -1072,8 +1073,8 @@ static int map_device_children(struct domain *d,
  *  - Assign the device to the guest if it's protected by an IOMMU
  *  - Map the IRQs and iomem regions to DOM0
  */
-static int handle_device(struct domain *d, struct dt_device_node *dev,
-                         p2m_type_t p2mt)
+static int handle_device(struct domain *d, struct kernel_info *kinfo,
+			 struct dt_device_node *dev, p2m_type_t p2mt)
 {
     unsigned int nirq;
     unsigned int naddr;
@@ -1143,6 +1144,7 @@ static int handle_device(struct domain *d, struct dt_device_node *dev,
     /* Give permission and map MMIOs */
     for ( i = 0; i < naddr; i++ )
     {
+	paddr_t load_addr, load_end, end;
         struct map_range_data mr_data = { .d = d, .p2mt = p2mt };
         res = dt_device_get_address(dev, i, &addr, &size);
         if ( res )
@@ -1152,6 +1154,26 @@ static int handle_device(struct domain *d, struct dt_device_node *dev,
             return res;
         }
 
+#ifdef CONFIG_ARM_64
+        end = addr + size;
+	if (kinfo->image_type == ZIMAGE)
+        {
+	    load_addr = kernel_zimage_place(kinfo);
+	    load_end = load_addr + kinfo->zimage.len;
+	} else
+        {
+            panic("Not supported\n");
+	}
+        if (((addr >= load_addr) && (addr < load_end)) ||
+	    ((end > load_addr) && (end <= load_end)))
+        {
+            printk(XENLOG_WARNING "NODE %s conflicts with kernel address %#"PRIpaddr"-%#"PRIpaddr"\n"
+                   "Adjust load_offset to %#"PRIpaddr"\n",
+                   dt_node_full_name(dev), load_addr, load_end,
+		   ROUNDUP(end - load_addr, SZ_2M));
+	    kinfo->zimage.load_offset += ROUNDUP(end - load_addr, SZ_2M);
+        }
+#endif
         res = map_range_to_domain(dev, addr, size, &mr_data);
         if ( res )
             return res;
@@ -1254,7 +1276,7 @@ static int handle_node(struct domain *d, struct kernel_info *kinfo,
                "WARNING: Path %s is reserved, skip the node as we may re-use the path.\n",
                path);
 
-    res = handle_device(d, node, p2mt);
+    res = handle_device(d, kinfo, node, p2mt);
     if ( res)
         return res;
 
