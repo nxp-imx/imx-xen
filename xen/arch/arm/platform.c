@@ -155,6 +155,17 @@ bool platform_device_is_blacklisted(const struct dt_device_node *node)
     return (dt_match_node(blacklist, node) != NULL);
 }
 
+bool platform_handle_hvc(struct cpu_user_regs *regs)
+{
+    if (is_hardware_domain(current->domain))
+    {
+        if (platform && platform->handle_hvc)
+            return platform->handle_hvc(regs);
+    }
+
+    return false;
+}
+
 int platform_domain_create(struct domain *d,
                            struct xen_domctl_createdomain *config)
 {

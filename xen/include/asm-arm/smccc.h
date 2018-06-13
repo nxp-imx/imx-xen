@@ -286,6 +286,7 @@ void __arm_smccc_1_0_smc(register_t a0, register_t a1, register_t a2,
 #define ARM_SMCCC_OWNER_OEM             3
 #define ARM_SMCCC_OWNER_STANDARD        4
 #define ARM_SMCCC_OWNER_HYPERVISOR      5
+#define ARM_SMCCC_OWNER_VENDOR_HYPERVISOR 6
 #define ARM_SMCCC_OWNER_TRUSTED_APP     48
 #define ARM_SMCCC_OWNER_TRUSTED_APP_END 49
 #define ARM_SMCCC_OWNER_TRUSTED_OS      50
