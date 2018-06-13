@@ -34,6 +34,7 @@ struct platform_desc {
      * Returns true if the call was handled and false if not.
      */
     bool (*handle_sip)(struct cpu_user_regs *regs);
+    bool (*handle_hvc)(struct cpu_user_regs *regs);
     /*
      * Platform quirks
      * Defined has a function because a platform can support multiple

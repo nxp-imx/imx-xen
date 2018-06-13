@@ -178,6 +178,7 @@ static bool handle_sssc(struct cpu_user_regs *regs)
  * was unknown).
  */
 extern bool platform_handle_sip(struct cpu_user_regs *regs);
+extern bool platform_handle_hvc(struct cpu_user_regs *regs);
 static bool vsmccc_handle_call(struct cpu_user_regs *regs)
 {
     bool handled = false;
@@ -238,6 +239,9 @@ static bool vsmccc_handle_call(struct cpu_user_regs *regs)
             break;
         case ARM_SMCCC_OWNER_SIP:
             handled = platform_handle_sip(regs);
+	    break;
+        case ARM_SMCCC_OWNER_VENDOR_HYPERVISOR:
+            handled = platform_handle_hvc(regs);
             break;
         }
     }
