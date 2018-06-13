@@ -161,6 +161,25 @@ const void *dt_get_property(const struct dt_device_node *np,
     return pp ? pp->value : NULL;
 }
 
+bool_t dt_property_read_u32_array(const struct dt_device_node *np,
+                         const char *name, u32 *out_value, int count)
+{
+    u32 len;
+    const __be32 *val;
+    int i;
+
+    val = dt_get_property(np, name, &len);
+    if ( !val || len != (count << 2) )
+        return 0;
+
+    for (i = 0; i < count; i++)
+    {
+        out_value[i] = be32_to_cpup(val++);
+    }
+
+    return 1;
+}
+
 bool_t dt_property_read_u32(const struct dt_device_node *np,
                          const char *name, u32 *out_value)
 {
