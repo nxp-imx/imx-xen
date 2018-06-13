@@ -76,6 +76,7 @@ static inline uint32_t smccc_get_owner(register_t funcid)
 #define ARM_SMCCC_OWNER_OEM             3
 #define ARM_SMCCC_OWNER_STANDARD        4
 #define ARM_SMCCC_OWNER_HYPERVISOR      5
+#define ARM_SMCCC_OWNER_VENDOR_HYPERVISOR 6
 #define ARM_SMCCC_OWNER_TRUSTED_APP     48
 #define ARM_SMCCC_OWNER_TRUSTED_APP_END 49
 #define ARM_SMCCC_OWNER_TRUSTED_OS      50
