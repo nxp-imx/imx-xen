@@ -353,6 +353,8 @@ const struct dt_property *dt_find_property(const struct dt_device_node *np,
  *
  * Return true if get the desired value.
  */
+bool_t dt_property_read_u32_array(const struct dt_device_node *np,
+                         const char *name, u32 *out_value, int count);
 bool_t dt_property_read_u32(const struct dt_device_node *np,
                             const char *name, u32 *out_value);
 /**
