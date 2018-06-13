@@ -158,6 +158,28 @@ bool platform_handle_sip(struct cpu_user_regs *regs)
     return false;
 }
 
+int platform_domain_create(struct domain *d, unsigned int domcr_flags,
+                           struct xen_arch_domainconfig *config)
+{
+    if (current->domain == d)
+	    return -EINVAL;
+
+    if (platform && platform->domain_create)
+        return platform->domain_create(d, domcr_flags, config);
+
+    return 0;
+}
+int platform_domain_destroy(struct domain *d)
+{
+    if (current->domain == d)
+	    return -EINVAL;
+
+    if (platform && platform->domain_destroy)
+        return platform->domain_destroy(d);
+
+    return 0;
+}
+
 /*
  * Local variables:
  * mode: C

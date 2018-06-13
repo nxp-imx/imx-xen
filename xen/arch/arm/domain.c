@@ -670,6 +670,9 @@ int arch_domain_create(struct domain *d, unsigned int domcr_flags,
     if ( is_hardware_domain(d) && (rc = domain_vuart_init(d)) )
         goto fail;
 
+    if (platform_domain_create(d, domcr_flags, config))
+        goto fail;
+
     return 0;
 
 fail:
@@ -681,6 +684,7 @@ fail:
 
 void arch_domain_destroy(struct domain *d)
 {
+    platform_domain_destroy(d);
     /* IOMMU page table is shared with P2M, always call
      * iommu_domain_destroy() before p2m_teardown().
      */
