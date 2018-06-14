@@ -9,3 +9,4 @@ obj-$(CONFIG_ARM_64) += seattle.o
 obj-y += sunxi.o
 obj-$(CONFIG_ARM_64) += xgene-storm.o
 obj-$(CONFIG_ARM_64) += xilinx-zynqmp.o
+subdir-y += scfw_export_hyper
