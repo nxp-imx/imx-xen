@@ -37,13 +37,7 @@
 
 /* Includes */
 
-#include <stdint.h>
-#include <stddef.h>
-#include <string.h>
-#include <stdbool.h>
-#ifdef DEBUG
-    #include <stdio.h>
-#endif
+#include <xen/types.h>
 
 /*!
  * This type is used to declare a handle for an IPC communication
