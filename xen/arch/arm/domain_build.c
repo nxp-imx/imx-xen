@@ -1177,8 +1177,7 @@ static int handle_device(struct domain *d, struct kernel_info *kinfo,
         {
             panic("Not supported\n");
 	}
-        if (((addr >= load_addr) && (addr < load_end)) ||
-	    ((end > load_addr) && (end <= load_end)))
+        if ((addr <= load_end) && (load_addr <= end))
         {
             printk(XENLOG_WARNING "NODE %s conflicts with kernel address %#"PRIpaddr"-%#"PRIpaddr"\n"
                    "Adjust load_offset to %#"PRIpaddr"\n",
