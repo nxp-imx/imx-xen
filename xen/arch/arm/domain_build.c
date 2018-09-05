@@ -1186,6 +1186,12 @@ static int handle_device(struct domain *d, struct kernel_info *kinfo,
 	    kinfo->zimage.load_offset += ROUNDUP(end - load_addr, SZ_2M);
         }
 #endif
+        if (!strncmp("/reserved-memory/", dt_node_full_name(dev), strlen("/reserved-memory/")))
+        {
+            printk(XENLOG_WARNING "Ignore reserved memory reg, %s!\n", dt_node_full_name(dev));
+            continue;
+        }
+
         res = map_range_to_domain(dev, addr, size, &mr_data);
         if ( res )
             return res;
