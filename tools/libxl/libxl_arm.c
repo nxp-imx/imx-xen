@@ -820,6 +820,12 @@ static int copy_partial_fdt(libxl__gc *gc, void *fdt, void *pfdt)
         return r;
     }
 
+    r = copy_node_by_path(gc, "/reserved-memory", fdt, pfdt);
+    if (r < 0 && r != -FDT_ERR_NOTFOUND) {
+        LOG(ERROR, "Can't copy the node \"/passthrough\" from the partial FDT");
+        return r;
+    }
+
     r = copy_node_by_path(gc, "/aliases", fdt, pfdt);
     if (r < 0 && r != -FDT_ERR_NOTFOUND) {
         LOG(ERROR, "Can't copy the node \"/aliases\" from the partial FDT");
