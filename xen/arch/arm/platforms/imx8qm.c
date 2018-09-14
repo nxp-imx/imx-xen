@@ -21,6 +21,7 @@
  */
 
 #include <asm/io.h>
+#include <asm/imx8.h>
 #include <asm/sci.h>
 #include <asm/p2m.h>
 #include <asm/platform.h>
@@ -51,16 +52,56 @@ struct imx8qm_domain {
     char dom_name[256];
     u32 init_on_num_rsrc;
     u32 init_on_rsrcs[32];
+    struct gpio_dom gpio_dom;
 };
 
 #define QM_NUM_DOMAIN	8
 /* 8 user domains */
 static struct imx8qm_domain imx8qm_doms[QM_NUM_DOMAIN];
 
+static int register_gpio_check(struct dt_phandle_args *gpiospec, struct imx8qm_domain *imx8qm_dom)
+{
+    struct gpio_dom *gpio_dom = &imx8qm_dom->gpio_dom;
+    struct dt_device_node *gpio_node;
+    paddr_t reg_base;
+    int bit, rc, i;
+
+    gpio_node = gpiospec->np;
+    bit = gpiospec->args[0];
+    rc = dt_device_get_address(gpio_node, 0, &reg_base, NULL);
+    if (rc)
+    {
+        dprintk(XENLOG_ERR, "err gpio reg\n");
+        return rc;
+    }
+
+    for (i = 0; i < MAX_GPIO_CONTROLLER; i++)
+    {
+        if (gpio_dom->gpios[i].base == reg_base)
+            break;
+    }
+    if (i == MAX_GPIO_CONTROLLER)
+    {
+        for (i = 0; i < MAX_GPIO_CONTROLLER; i++)
+        {
+            if (gpio_dom->gpios[i].base == 0)
+                break;
+        }
+    }
+
+    gpio_dom->gpios[i].base = reg_base;
+    set_bit(bit, &gpio_dom->gpios[i].bits);
+
+    printk("Enable GPIO for %s %lx %x %d\n", imx8qm_dom->dom_name, reg_base, gpio_dom->gpios[i].bits, bit);
+
+    return 0;
+}
+
 static int imx8qm_system_init(void)
 {
     struct dt_device_node *np = NULL;
-    unsigned int i, rsrc_size;
+    unsigned int i, j, rsrc_size;
+    struct dt_phandle_args gpiospec;
     int ret;
 
     while ((np = dt_find_compatible_node(np, NULL, "xen,domu")))
@@ -101,6 +142,20 @@ static int imx8qm_system_init(void)
                     panic("Reading init_on_rsrcs Error\n");
                 imx8qm_doms[i].init_on_num_rsrc = rsrc_size >> 2;
 	    }
+	    j = 0;
+            while (!dt_parse_phandle_with_args(np, "gpios",
+                                               "#gpio-cells", j,
+                                               &gpiospec))
+	    {
+                ret = register_gpio_check(&gpiospec, &imx8qm_doms[i]);
+                if (ret)
+                {
+                    dprintk(XENLOG_ERR, "failed to add gpio %s\n",
+                            gpiospec.np->name);
+                    return ret;
+                }
+                j++;
+            }
         }
     }
 
@@ -254,6 +309,7 @@ static int imx8qm_domain_create(struct domain *d,
 		register_mmio_handler(d, &lsio_mu1_mmio_handler, 0x5d1c0000, 0x10000, NULL);
 		lsio_mu1.base = 0x5d1c0000;
 		lsio_mu1.size = 0x28;
+            domain_vgpio_init(d, NULL);
 	}
         return 0;
     }
@@ -285,6 +341,11 @@ static int imx8qm_domain_create(struct domain *d,
                     printk("power on resource %d err: %d\n", imx8qm_doms[i].init_on_rsrcs[j], sci_err);
             }
         }
+    }
+    /* Not control domain */
+    if (dt_machine_is_compatible("fsl,imx8qm"))
+    {
+            domain_vgpio_init(d, &imx8qm_doms[i].gpio_dom);
     }
 
     return 0;
