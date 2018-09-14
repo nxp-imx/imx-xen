@@ -1154,6 +1154,12 @@ static int handle_device(struct domain *d, struct kernel_info *kinfo,
             return res;
     }
 
+    if(dt_device_is_compatible(dev, "fsl,imx8qm-gpio"))
+    {
+        printk("Ignore gpio\n");
+        return 0;
+    }
+
     /* Give permission and map MMIOs */
     for ( i = 0; i < naddr; i++ )
     {
