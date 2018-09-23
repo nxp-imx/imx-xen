@@ -1154,9 +1154,9 @@ static int handle_device(struct domain *d, struct kernel_info *kinfo,
             return res;
     }
 
-    if(dt_device_is_compatible(dev, "fsl,imx8qm-gpio"))
+    if(dt_device_is_compatible(dev, "fsl,imx8qm-gpio") && dt_get_property(dev, "xen,shared", NULL))
     {
-        printk("Ignore gpio\n");
+        printk("Share gpio between Domains: %s\n", dev->full_name);
         return 0;
     }
 
