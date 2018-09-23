@@ -523,6 +523,10 @@ static void p2m_set_permission(lpae_t *e, p2m_type_t t, p2m_access_t a)
         e->p2m.xn = 1;
         e->p2m.write = 1;
         break;
+    case p2m_mmio_direct_nc_x:
+        e->p2m.xn = 0;
+        e->p2m.write = 1;
+	break;
 
     case p2m_iommu_map_ro:
     case p2m_map_foreign_ro:
@@ -613,6 +617,7 @@ static lpae_t mfn_to_p2m_entry(mfn_t mfn, p2m_type_t t, p2m_access_t a)
      * Shareable for Normal Inner Non_cacheable, Outer Non-cacheable.
      * See the note for table D4-40, in page 1788 of the ARM DDI 0487A.j.
      */
+    case p2m_mmio_direct_nc_x:
     case p2m_mmio_direct_nc:
         e.p2m.mattr = MATTR_MEM_NC;
         e.p2m.sh = LPAE_SH_OUTER;
@@ -1338,6 +1343,12 @@ int map_mmio_regions(struct domain *d,
                      unsigned long nr,
                      mfn_t mfn)
 {
+    if (((long)gfn_x(start_gfn) >= (GUEST_RAM0_BASE >> PAGE_SHIFT)) &&
+	(((long)gfn_x(start_gfn) + nr) <= ((GUEST_RAM0_BASE + GUEST_RAM0_SIZE)>> PAGE_SHIFT)))
+    {
+	p2m_remove_mapping(d, start_gfn, nr, mfn);
+	return p2m_insert_mapping(d, start_gfn, nr, mfn, p2m_mmio_direct_nc_x);
+    }
     return p2m_insert_mapping(d, start_gfn, nr, mfn, p2m_mmio_direct_dev);
 }
 
