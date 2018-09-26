@@ -808,6 +808,39 @@ int parse_usbdev_config(libxl_device_usbdev *usbdev, char *token)
     return 0;
 }
 
+int parse_vi2c_config(libxl_device_vi2c *vi2c, char *token)
+{
+    char *oparg;
+    libxl_string_list slaves = NULL;
+    int rc;
+    int i;
+
+    if (MATCH_OPTION("backend", token, oparg)) {
+        vi2c->backend_domname = strdup(oparg);
+    } else if (MATCH_OPTION("be-adapter", token, oparg)) {
+        vi2c->be_adapter = strdup(oparg);
+    } else if (MATCH_OPTION("slaves", token, oparg)) {
+        split_string_into_string_list(oparg, ";", &slaves);
+
+        vi2c->num_slaves = libxl_string_list_length(&slaves);
+        vi2c->slaves = calloc(vi2c->num_slaves, sizeof(*vi2c->slaves));
+
+        for(i = 0; i < vi2c->num_slaves; i++)
+        {
+            vi2c->slaves[i] = strtoul(slaves[i], NULL, 16);
+        }
+    } else {
+        fprintf(stderr, "Unknown string \"%s\" in vi2c spec\n", token);
+        rc = 1; goto out;
+    }
+
+    rc = 0;
+
+out:
+    libxl_string_list_dispose(&slaves);
+    return rc;
+}
+
 int parse_vdispl_config(libxl_device_vdispl *vdispl, char *token)
 {
     char *oparg;
@@ -1212,7 +1245,8 @@ void parse_config_data(const char *config_source,
     long l, vcpus = 0;
     XLU_Config *config;
     XLU_ConfigList *cpus, *vbds, *nics, *pcis, *cvfbs, *cpuids, *vtpms,
-                   *usbctrls, *usbdevs, *p9devs, *vdispls, *pvcallsifs_devs;
+                   *usbctrls, *usbdevs, *p9devs, *vdispls, *pvcallsifs_devs,
+		   *vi2cs;
     XLU_ConfigList *channels, *ioports, *irqs, *iomem, *viridian, *dtdevs,
                    *mca_caps;
     int num_ioports, num_irqs, num_iomem, num_cpus, num_viridian, num_mca_caps;
@@ -2084,6 +2118,30 @@ void parse_config_data(const char *config_source,
             if(!got_backend) {
                fprintf(stderr, "vtpm spec missing required backend field!\n");
                exit(1);
+            }
+            free(buf2);
+        }
+    }
+
+    if (!xlu_cfg_get_list(config, "vi2c", &vi2cs, 0, 0)) {
+        d_config->num_vi2cs = 0;
+        d_config->vi2cs = NULL;
+        while ((buf = xlu_cfg_get_listitem(vi2cs, d_config->num_vi2cs)) != NULL) {
+            libxl_device_vi2c *vi2c;
+            char * buf2 = strdup(buf);
+            char *p;
+            vi2c = ARRAY_EXTEND_INIT(d_config->vi2cs,
+                                     d_config->num_vi2cs,
+                                     libxl_device_vi2c_init);
+            p = strtok (buf2, ",");
+            while (p != NULL)
+            {
+                while (*p == ' ') p++;
+                if (parse_vi2c_config(vi2c, p)) {
+                    free(buf2);
+                    exit(1);
+                }
+                p = strtok (NULL, ",");
             }
             free(buf2);
         }
