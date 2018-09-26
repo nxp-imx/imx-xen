@@ -24,6 +24,7 @@
 #define _GNU_SOURCE
 
 #if defined(__NetBSD__)
+#define SYSFS_I2C_ADAPTER      "/dev/null"
 #define SYSFS_USB_DEV          "/sys/bus/usb/devices"
 #define SYSFS_USBBACK_DRIVER   "/kern/xen/usb"
 #define SYSFS_PCI_DEV          "/sys/bus/pci/devices"
@@ -34,6 +35,7 @@
 #elif defined(__OpenBSD__)
 #include <util.h>
 #elif defined(__linux__)
+#define SYSFS_I2C_ADAPTER      "/sys/class/i2c-adapter"
 #define SYSFS_USB_DEV          "/sys/bus/usb/devices"
 #define SYSFS_USBBACK_DRIVER   "/sys/bus/usb/drivers/usbback"
 #define SYSFS_PCI_DEV          "/sys/bus/pci/devices"
@@ -45,6 +47,7 @@
 #elif defined(__sun__)
 #include <stropts.h>
 #elif defined(__FreeBSD__)
+#define SYSFS_I2C_ADAPTER      "/dev/null"
 #define SYSFS_USB_DEV          "/dev/null"
 #define SYSFS_USBBACK_DRIVER   "/dev/null"
 #define SYSFS_PCI_DEV          "/dev/null"
