@@ -2204,6 +2204,29 @@ int libxl_device_vsnd_getinfo(libxl_ctx *ctx, uint32_t domid,
                               const libxl_device_vsnd *vsnd,
                               libxl_vsndinfo *vsndlinfo)
                               LIBXL_EXTERNAL_CALLERS_ONLY;
+/* Virtual i2c */
+int libxl_device_vi2c_add(libxl_ctx *ctx, uint32_t domid,
+                          libxl_device_vi2c *vi2c,
+                          const libxl_asyncop_how *ao_how)
+                          LIBXL_EXTERNAL_CALLERS_ONLY;
+int libxl_device_vi2c_remove(libxl_ctx *ctx, uint32_t domid,
+                             libxl_device_vi2c *vi2c,
+                             const libxl_asyncop_how *ao_how)
+                             LIBXL_EXTERNAL_CALLERS_ONLY;
+int libxl_device_vi2c_destroy(libxl_ctx *ctx, uint32_t domid,
+                              libxl_device_vi2c *vi2c,
+                              const libxl_asyncop_how *ao_how)
+                              LIBXL_EXTERNAL_CALLERS_ONLY;
+
+libxl_device_vi2c *libxl_device_vi2c_list(libxl_ctx *ctx,
+                                          uint32_t domid, int *num)
+                                          LIBXL_EXTERNAL_CALLERS_ONLY;
+void libxl_device_vi2c_list_free(libxl_device_vi2c* list, int num)
+                                 LIBXL_EXTERNAL_CALLERS_ONLY;
+int libxl_device_vi2c_getinfo(libxl_ctx *ctx, uint32_t domid,
+                              libxl_device_vi2c *vi2c,
+                              libxl_vi2cinfo *vi2cinfo)
+                              LIBXL_EXTERNAL_CALLERS_ONLY;
 
 /* Keyboard */
 int libxl_device_vkb_add(libxl_ctx *ctx, uint32_t domid, libxl_device_vkb *vkb,
