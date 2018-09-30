@@ -23,6 +23,8 @@ struct gpio_dom {
     struct {
         paddr_t base;
         u32 bits;
+	/* each bits extended to 2 bits in ext_bits */
+	u64 ext_bits;
     } gpios[MAX_GPIO_CONTROLLER];
 };
 
