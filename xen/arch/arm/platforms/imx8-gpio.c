@@ -66,7 +66,12 @@ static int vgpio_mmio_read(struct vcpu *v, mmio_info_t *info, register_t *r,
 	}
 
         spin_lock(&vgpio->lock);
-        *r = readl(vgpio->mapbase + off) & gpio_dom->gpios[i].bits;
+        if (off == 0xc)
+            *r = readl(vgpio->mapbase + off) & gpio_dom->gpios[i].ext_bits;
+        else if (off == 0x10)
+            *r = readl(vgpio->mapbase + off) & (gpio_dom->gpios[i].ext_bits >> 32);
+	else
+            *r = readl(vgpio->mapbase + off) & gpio_dom->gpios[i].bits;
         spin_unlock(&vgpio->lock);
     }
 
@@ -80,7 +85,7 @@ static int vgpio_mmio_write(struct vcpu *v, mmio_info_t *info, register_t r,
     struct domain *d = vgpio->dom;
     struct gpio_dom *gpio_dom = vgpio->gpio_dom;
     paddr_t off = info->gpa - vgpio->base;
-    u32 val;
+    u32 val, mask;
     int i;
 
     if (is_control_domain(d))
@@ -91,7 +96,7 @@ static int vgpio_mmio_write(struct vcpu *v, mmio_info_t *info, register_t r,
     }
     else
     {
-        if (off < 0x14)
+        if (off <= 0x1C)
         {
             for (i = 0; i < MAX_GPIO_CONTROLLER; i++)
             {
@@ -100,24 +105,50 @@ static int vgpio_mmio_write(struct vcpu *v, mmio_info_t *info, register_t r,
 	    }
 	    if (i == MAX_GPIO_CONTROLLER)
             {
-                /* Ignore write */
+		printk("No match controller\n");
+                return 0;
+            }
+            /*
+	     * Happends in domu gpio probe
+	     * We ignore these two, because dom0 already did this.
+	     */
+            if (off == 0xc)
+                mask = gpio_dom->gpios[i].ext_bits;
+            else if (off == 0x10)
+                mask = gpio_dom->gpios[i].ext_bits >> 32;
+            else
+                mask = gpio_dom->gpios[i].bits;
+
+            if ((r == 0xffffffff) && (off == 0x18))
+            {
+                val = readl(vgpio->mapbase + off) & ~mask;
+                writel(val | (r & mask), vgpio->mapbase + off);
                 return 1;
             }
-	    if (r & ~gpio_dom->gpios[i].bits)
+
+            if ((r == 0) && (off == 0x14))
+            {
+                val = readl(vgpio->mapbase + off);
+		val &= ~mask;
+                writel(val, vgpio->mapbase + off);
+                return 1;
+            }
+
+	    /* write 1 check */
+	    if (r & ~mask)
 	    {
                 dprintk(XENLOG_ERR, " Touched address %lx not allowed bits %lx, allowed bits %x\n", info->gpa, r, gpio_dom->gpios[i].bits);
                 return 0;
 	    }
             spin_lock(&vgpio->lock);
-            val = (readl(vgpio->mapbase + off) & ~(gpio_dom->gpios[i].bits)) | (r & gpio_dom->gpios[i].bits);
+            val = (readl(vgpio->mapbase + off) & ~mask) | (r & mask);
             writel(val, vgpio->mapbase + off);
             spin_unlock(&vgpio->lock);
 	}
 	else
 	{
-            dprintk(XENLOG_INFO, "Touched address %lx not allowed, ignore\n", info->gpa);
-            /* Ignore the write for DomUs */
-            return 1;
+            dprintk(XENLOG_INFO, "Touched address %lx not allowed\n", info->gpa);
+            return 0;
 	}
     }
 
@@ -138,11 +169,17 @@ int domain_vgpio_init(struct domain *d, struct gpio_dom *gpio_dom)
 
     dt_for_each_compatible_node(NULL, dn, NULL, "fsl,imx8qm-gpio")
     {
-        i++;
+        /* Only for shared gpio */
+        if (dt_get_property(dn, "xen,shared", NULL))
+            i++;
     }
 
-    printk("%s gpio controllers %d\n", __func__, i);
+    if (!i)
+	    return 0;
 
+    dprintk(XENLOG_INFO, "register %d gpio controllers\n", i);
+
+    /* Each domain has such an array */
     vgpio = xzalloc_array(struct imx_vgpio, i);
     if (!vgpio)
     {
@@ -152,6 +189,9 @@ int domain_vgpio_init(struct domain *d, struct gpio_dom *gpio_dom)
     i = 0;
     dt_for_each_compatible_node(NULL, dn, NULL, "fsl,imx8qm-gpio")
     {
+        if (!dt_get_property(dn, "xen,shared", NULL))
+            continue;
+
         p = &vgpio[i];
         rc = dt_device_get_address(dn, 0, &reg_base, &reg_size);
         if ( rc )

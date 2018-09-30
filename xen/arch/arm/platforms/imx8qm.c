@@ -52,6 +52,7 @@ struct imx8qm_domain {
     char dom_name[256];
     u32 init_on_num_rsrc;
     u32 init_on_rsrcs[32];
+    /* Each i.MX8QM domain has such a gpio_dom entry */
     struct gpio_dom gpio_dom;
 };
 
@@ -64,7 +65,7 @@ static int register_gpio_check(struct dt_phandle_args *gpiospec, struct imx8qm_d
     struct gpio_dom *gpio_dom = &imx8qm_dom->gpio_dom;
     struct dt_device_node *gpio_node;
     paddr_t reg_base;
-    int bit, rc, i;
+    u64 bit, rc, i;
 
     gpio_node = gpiospec->np;
     bit = gpiospec->args[0];
@@ -91,8 +92,10 @@ static int register_gpio_check(struct dt_phandle_args *gpiospec, struct imx8qm_d
 
     gpio_dom->gpios[i].base = reg_base;
     set_bit(bit, &gpio_dom->gpios[i].bits);
+    set_bit(bit << 1, &gpio_dom->gpios[i].ext_bits);
+    set_bit((bit << 1) + 1, &gpio_dom->gpios[i].ext_bits);
 
-    printk("Enable GPIO for %s %lx %x %d\n", imx8qm_dom->dom_name, reg_base, gpio_dom->gpios[i].bits, bit);
+    dprintk(XENLOG_DEBUG, "Enable GPIO for %s %lx %x %lx %ld\n", imx8qm_dom->dom_name, reg_base, gpio_dom->gpios[i].bits, gpio_dom->gpios[i].ext_bits, bit);
 
     return 0;
 }
