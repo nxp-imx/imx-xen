@@ -281,24 +281,33 @@ static int make_root_properties(libxl__gc *gc,
                                                       vers->xen_version_minor));
     if (res) return res;
 
-    nodeoff = fdt_path_offset(pfdt, "/");
-    if (nodeoff < 0)
-        return nodeoff;
-    res = fdt_node_check_compatible(pfdt, nodeoff, "fsl,imx8qm");
-    if (res == 0) {
-        res = fdt_property_compat(gc, fdt, 3,
-                                  GCSPRINTF("xen,xenvm-%d.%d",
-                                            vers->xen_version_major,
-                                            vers->xen_version_minor),
-                                  "xen,xenvm", "fsl,imx8qm");
-        if (res) return res;
+    if (pfdt) {
+        nodeoff = fdt_path_offset(pfdt, "/");
+        if (nodeoff < 0)
+            return nodeoff;
+        res = fdt_node_check_compatible(pfdt, nodeoff, "fsl,imx8qm");
+        if (res == 0) {
+            res = fdt_property_compat(gc, fdt, 3,
+                                      GCSPRINTF("xen,xenvm-%d.%d",
+                                                vers->xen_version_major,
+                                                vers->xen_version_minor),
+                                      "xen,xenvm", "fsl,imx8qm");
+            if (res) return res;
+        } else {
+            res = fdt_property_compat(gc, fdt, 2,
+                                      GCSPRINTF("xen,xenvm-%d.%d",
+                                                vers->xen_version_major,
+                                                vers->xen_version_minor),
+                                      "xen,xenvm");
+            if (res) return res;
+        }
     } else {
-        res = fdt_property_compat(gc, fdt, 2,
-                                  GCSPRINTF("xen,xenvm-%d.%d",
-                                            vers->xen_version_major,
-                                            vers->xen_version_minor),
-                                  "xen,xenvm");
-        if (res) return res;
+            res = fdt_property_compat(gc, fdt, 2,
+                                      GCSPRINTF("xen,xenvm-%d.%d",
+                                                vers->xen_version_major,
+                                                vers->xen_version_minor),
+                                      "xen,xenvm");
+            if (res) return res;
     }
 
     res = fdt_property_cell(fdt, "interrupt-parent", GUEST_PHANDLE_GIC);
