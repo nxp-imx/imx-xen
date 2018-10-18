@@ -14,6 +14,7 @@
  * along with this program; If not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) 2013 ARM Limited
+ * Copyright 2018 NXP
  *
  * Author: Will Deacon <will.deacon@arm.com>
  *
@@ -606,6 +607,7 @@ struct arm_smmu_master_cfg {
 	int				num_streamids;
 	u16				streamids[MAX_MASTER_STREAMIDS];
 	struct arm_smmu_smr		*smrs;
+	bool				init_smmu_bypass;
 };
 
 struct arm_smmu_master {
@@ -825,6 +827,12 @@ static int register_smmu_master(struct arm_smmu_device *smmu,
 		}
 		master->cfg.streamids[i] = streamid;
 	}
+
+	if (dt_get_property(master->of_node, "init-smmu-bypass", NULL)) {
+		master->cfg.init_smmu_bypass = true;
+		printk("%s: smmu bypass\n", master->of_node->name);
+	}
+
 	return insert_smmu_master(smmu, master);
 }
 
@@ -1505,6 +1513,7 @@ static void arm_smmu_domain_remove_master(struct arm_smmu_domain *smmu_domain,
 					  struct arm_smmu_master_cfg *cfg)
 {
 	int i;
+	u32 type;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
@@ -1517,11 +1526,13 @@ static void arm_smmu_domain_remove_master(struct arm_smmu_domain *smmu_domain,
 	 * that it can be re-allocated immediately.
 	 * Xen: Unlike Linux, any access to non-configured stream will fault.
 	 */
+	type = S2CR_TYPE_FAULT;
+	if (cfg->init_smmu_bypass)
+		type = S2CR_TYPE_BYPASS;
 	for (i = 0; i < cfg->num_streamids; ++i) {
 		u32 idx = cfg->smrs ? cfg->smrs[i].idx : cfg->streamids[i];
 
-		writel_relaxed(S2CR_TYPE_FAULT,
-			       gr0_base + ARM_SMMU_GR0_S2CR(idx));
+		writel_relaxed(type, gr0_base + ARM_SMMU_GR0_S2CR(idx));
 	}
 
 	arm_smmu_master_free_smrs(smmu, cfg);

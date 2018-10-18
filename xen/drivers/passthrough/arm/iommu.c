@@ -3,6 +3,7 @@
  *
  * Julien Grall <julien.grall@linaro.org>
  * Copyright (c) 2014 Linaro Limited.
+ * Copyright 2018 NXP
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +67,7 @@ int arch_iommu_domain_init(struct domain *d)
 
 void arch_iommu_domain_destroy(struct domain *d)
 {
+	iommu_release_dt_devices(d);
 }
 
 int arch_iommu_populate_page_table(struct domain *d)
