@@ -1407,7 +1407,6 @@ static int arm_smmu_master_configure_smrs(struct arm_smmu_device *smmu,
 {
 	int i;
 	struct arm_smmu_smr *smrs;
-	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
 	if (!(smmu->features & ARM_SMMU_FEAT_STREAM_MATCH))
 		return 0;
@@ -1436,13 +1435,6 @@ static int arm_smmu_master_configure_smrs(struct arm_smmu_device *smmu,
 			.mask	= 0x7f80, /* We don't currently share SMRs */
 			.id	= cfg->streamids[i],
 		};
-	}
-
-	/* It worked! Now, poke the actual hardware */
-	for (i = 0; i < cfg->num_streamids; ++i) {
-		u32 reg = SMR_VALID | smrs[i].id << SMR_ID_SHIFT |
-			  smrs[i].mask << SMR_MASK_SHIFT;
-		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_SMR(smrs[i].idx));
 	}
 
 	cfg->smrs = smrs;
@@ -1496,6 +1488,14 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 		s2cr = S2CR_TYPE_TRANS |
 		       (smmu_domain->cfg.cbndx << S2CR_CBNDX_SHIFT);
 		writel_relaxed(s2cr, gr0_base + ARM_SMMU_GR0_S2CR(idx));
+	}
+
+	/* It worked! Now, poke the actual hardware */
+	for (i = 0; i < cfg->num_streamids; ++i) {
+		u32 reg = SMR_VALID | cfg->smrs[i].id << SMR_ID_SHIFT |
+			  cfg->smrs[i].mask << SMR_MASK_SHIFT;
+		writel_relaxed(reg,
+			       gr0_base + ARM_SMMU_GR0_SMR(cfg->smrs[i].idx));
 	}
 
 	return 0;
