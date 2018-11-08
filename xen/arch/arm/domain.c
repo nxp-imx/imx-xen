@@ -972,6 +972,12 @@ int domain_relinquish_resources(struct domain *d)
          */
         domain_vpl011_deinit(d);
 
+        /*
+         * Release the resources allocated for vpl031 which were
+         * allocated via a DOMCTL call XEN_DOMCTL_vrtc_op.
+         */
+        domain_vpl031_deinit(d);
+
         d->arch.relmem = RELMEM_tee;
         /* Fallthrough */
 
