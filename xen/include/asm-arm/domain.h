@@ -13,6 +13,7 @@
 #include <xen/serial.h>
 #include <xen/rbtree.h>
 #include <asm-arm/vpl011.h>
+#include <asm-arm/vpl031.h>
 
 struct hvm_domain
 {
@@ -96,6 +97,7 @@ struct arch_domain
 #ifdef CONFIG_SBSA_VUART_CONSOLE
     struct vpl011 vpl011;
 #endif
+    struct PL031State vrtc;
 
 }  __cacheline_aligned;
 

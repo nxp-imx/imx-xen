@@ -415,6 +415,10 @@ typedef uint64_t xen_callback_t;
 #define GUEST_PL011_BASE    0x22000000ULL
 #define GUEST_PL011_SIZE    0x00001000ULL
 
+/* PL031 mappings */
+#define GUEST_PL031_BASE    0x23000000ULL
+#define GUEST_PL031_SIZE    0x00001000ULL
+
 /*
  * 16MB == 4096 pages reserved for guest to use as a region to map its
  * grant table in.
@@ -450,6 +454,7 @@ typedef uint64_t xen_callback_t;
 #define GUEST_EVTCHN_PPI        31
 
 #define GUEST_VPL011_SPI        32
+#define GUEST_VPL031_SPI        33
 
 /* PSCI functions */
 #define PSCI_cpu_suspend 0
