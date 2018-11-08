@@ -30,7 +30,7 @@ int libxl__arch_domain_prepare_config(libxl__gc *gc,
     uint32_t vuart_irq;
     bool vuart_enabled = false;
 
-    strncpy(xc_config->dom_name, d_config->c_info.name, 256);
+    strncpy(config->arch.dom_name, d_config->c_info.name, 256);
     /*
      * If pl011 vuart is enabled then increment the nr_spis to allow allocation
      * of SPI VIRQ for pl011.
@@ -683,6 +683,63 @@ static int make_vpl011_uart_node(libxl__gc *gc, void *fdt,
     return 0;
 }
 
+static int make_vpl031_rtc_node(libxl__gc *gc, void *fdt,
+                                const struct arch_info *ainfo,
+                                struct xc_dom_image *dom)
+{
+    int res;
+    uint32_t tmp = 0;
+    gic_interrupt intr;
+
+    res = fdt_begin_node(fdt, "apb-pclk");
+    if (res) return res;
+
+    res = fdt_property_compat(gc, fdt, 1, "fixed-clock");
+    if (res) return res;
+
+    res = fdt_property(fdt, "#clock-cells", &tmp, sizeof(tmp));
+    if (res) return res;
+
+    res = fdt_property(fdt, "clock-frequency", &tmp, sizeof(tmp));
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "linux,phandle", GUEST_PHANDLE_CLK);
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "phandle", GUEST_PHANDLE_CLK);
+    if (res) return res;
+
+    res = fdt_end_node(fdt);
+    if (res) return res;
+
+    res = fdt_begin_node(fdt, "rtc-pl031");
+    if (res) return res;
+
+    res = fdt_property_compat(gc, fdt, 2, "arm,pl031", "arm,primecell");
+    if (res) return res;
+
+    res = fdt_property_regs(gc, fdt, GUEST_ROOT_ADDRESS_CELLS, GUEST_ROOT_SIZE_CELLS,
+                            1,
+                            GUEST_PL031_BASE, GUEST_PL031_SIZE);
+    if (res) return res;
+
+    set_interrupt(intr, GUEST_VPL031_SPI, 0xf, DT_IRQ_TYPE_LEVEL_HIGH);
+
+    res = fdt_property_interrupts(gc, fdt, &intr, 1);
+    if (res) return res;
+
+    res = fdt_property_cell(fdt, "clocks", GUEST_PHANDLE_CLK);
+    if (res) return res;
+
+    fdt_property_string(fdt, "clock-names", "apb_pclk");
+    if (res) return res;
+
+    res = fdt_end_node(fdt);
+    if (res) return res;
+
+    return 0;
+}
+
 static const struct arch_info *get_arch_info(libxl__gc *gc,
                                              const struct xc_dom_image *dom)
 {
@@ -992,6 +1049,9 @@ next_resize:
         if (info->tee == LIBXL_TEE_TYPE_OPTEE)
             FDT( make_optee_node(gc, fdt) );
 
+        if (info->arch_arm.vrtc == LIBXL_VRTC_TYPE_PL031)
+            FDT( make_vpl031_rtc_node(gc, fdt, ainfo, dom) );
+
         if (pfdt)
             FDT( copy_partial_fdt(gc, fdt, pfdt) );
 
@@ -1152,6 +1212,16 @@ int libxl__arch_build_dom_finish(libxl__gc *gc,
                                  libxl__domain_build_state *state)
 {
     int rc = 0, ret;
+
+    if (info->arch_arm.vrtc == LIBXL_VRTC_TYPE_PL031) {
+        ret = xc_dom_vrtc_init(CTX->xch,
+                               XEN_DOMCTL_VRTC_TYPE_VPL031,
+                               dom->guest_domid);
+        if (ret < 0) {
+            rc = ERROR_FAIL;
+            LOGE(ERROR, "xc_dom_vrtc_init failed\n");
+        }
+    }
 
     if (info->arch_arm.vuart != LIBXL_VUART_TYPE_SBSA_UART) {
         rc = 0;

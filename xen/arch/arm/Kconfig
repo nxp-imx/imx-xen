@@ -116,6 +116,11 @@ config TEE
 
 source "arch/arm/tee/Kconfig"
 
+config VRTC_PL031
+	bool "Emulated RTC PL031 support"
+	default y
+	---help---
+	  Allows a guest to use emulated PL031 device.
 endmenu
 
 menu "ARM errata workaround via the alternative framework"

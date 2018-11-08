@@ -321,6 +321,26 @@ int xc_domain_get_guest_width(xc_interface *xch, uint32_t domid,
     return 0;
 }
 
+int xc_dom_vrtc_init(xc_interface *xch,
+                     uint32_t type,
+                     uint32_t domid)
+{
+    DECLARE_DOMCTL;
+    int rc = 0;
+
+    memset(&domctl, 0, sizeof(domctl));
+
+    domctl.cmd = XEN_DOMCTL_vrtc_op;
+    domctl.domain = domid;
+    domctl.u.vrtc_op.cmd = XEN_DOMCTL_VRTC_OP_INIT;
+    domctl.u.vrtc_op.type = type;
+
+    if ( (rc = do_domctl(xch, &domctl)) < 0 )
+        return rc;
+
+    return rc;
+}
+
 int xc_dom_vuart_init(xc_interface *xch,
                       uint32_t type,
                       uint32_t domid,

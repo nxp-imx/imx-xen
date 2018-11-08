@@ -894,6 +894,17 @@ int xc_vcpu_getcontext(xc_interface *xch,
                        vcpu_guest_context_any_t *ctxt);
 
 /**
+ * This function initializes the vrtc emulation.
+ *
+ * @parm xch a handle to an open hypervisor interface
+ * #parm type type of vuart
+ * @parm domid the domain to get information from
+ * @return 0 on success, negative error on failure
+ */
+int xc_dom_vrtc_init(xc_interface *xch,
+                     uint32_t type,
+                     uint32_t domid);
+/**
  * This function initializes the vuart emulation and returns
  * the event to be used by the backend for communicating with
  * the emulation code.

@@ -1420,6 +1420,14 @@ void parse_config_data(const char *config_source,
         }
     }
 
+    if (!xlu_cfg_get_string(config, "vrtc", &buf, 0)) {
+        if (libxl_vrtc_type_from_string(buf, &b_info->arch_arm.vrtc)) {
+            fprintf(stderr, "ERROR: invalid value \"%s\" for \"vrtc\"\n",
+                    buf);
+            exit(1);
+        }
+    }
+
     parse_vnuma_config(config, b_info);
 
     /* Set max_memkb to target_memkb and max_vcpus to avail_vcpus if

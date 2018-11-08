@@ -359,6 +359,12 @@
 #define LIBXL_HAVE_BUILDINFO_ARM_VUART 1
 
 /*
+ * LIBXL_HAVE_BUILDINFO_ARM_VRTC indicates that the toolstack supports virtual RTC
+ * for ARM.
+ */
+#define LIBXL_HAVE_BUILDINFO_ARM_VRTC 1
+
+/*
  * LIBXL_HAVE_BUILDINFO_GRANT_LIMITS indicates that libxl_domain_build_info
  * has the max_grant_frames and max_maptrack_frames fields.
  */

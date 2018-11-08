@@ -59,6 +59,7 @@ endif
 obj-y += vm_event.o
 obj-y += vtimer.o
 obj-$(CONFIG_SBSA_VUART_CONSOLE) += vpl011.o
+obj-$(CONFIG_VRTC_PL031) += vpl031.o
 obj-y += vsmc.o
 obj-y += vpsci.o
 obj-y += vuart.o

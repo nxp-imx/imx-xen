@@ -22,6 +22,23 @@ void arch_get_domain_info(const struct domain *d,
     info->flags |= XEN_DOMINF_hap;
 }
 
+
+static int handle_vrtc_init(struct domain *d,
+                            struct xen_domctl_vrtc_op *vrtc_op)
+{
+    int rc;
+
+    if ( d->creation_finished )
+        return -EPERM;
+
+    if ( vrtc_op->type != XEN_DOMCTL_VRTC_TYPE_VPL031 )
+        return -EOPNOTSUPP;
+
+    rc = domain_vpl031_init(d);
+
+    return rc;
+}
+
 static int handle_vuart_init(struct domain *d, 
                              struct xen_domctl_vuart_op *vuart_op)
 {
@@ -149,6 +166,34 @@ long arch_do_domctl(struct xen_domctl *domctl, struct domain *d,
     case XEN_DOMCTL_disable_migrate:
         d->disable_migrate = domctl->u.disable_migrate.disable;
         return 0;
+
+    case XEN_DOMCTL_vrtc_op:
+    {
+        int rc;
+        unsigned int i;
+        struct xen_domctl_vrtc_op *vrtc_op = &domctl->u.vrtc_op;
+
+        /* check that structure padding must be 0. */
+        for ( i = 0; i < sizeof(vrtc_op->pad); i++ )
+            if ( vrtc_op->pad[i] )
+                return -EINVAL;
+
+        switch( vrtc_op->cmd )
+        {
+        case XEN_DOMCTL_VRTC_OP_INIT:
+            rc = handle_vrtc_init(d, vrtc_op);
+            break;
+
+        default:
+            rc = -EINVAL;
+            break;
+        }
+
+        if ( !rc )
+            rc = copy_to_guest(u_domctl, domctl, 1);
+
+        return rc;
+    }
 
     case XEN_DOMCTL_vuart_op:
     {

@@ -1107,6 +1107,17 @@ struct xen_domctl_psr_alloc {
     uint64_t data;      /* IN/OUT */
 };
 
+/* XEN_DOMCTL_vrtc_op */
+struct xen_domctl_vrtc_op {
+#define XEN_DOMCTL_VRTC_OP_INIT  0
+        uint32_t cmd;           /* XEN_DOMCTL_VRTC_OP_* */
+#define XEN_DOMCTL_VRTC_TYPE_VPL031 0
+        uint32_t type;          /* IN - type of vrtc.
+                                 *      Currently only vpl031 supported.
+                                 */
+        uint8_t pad[2];
+};
+
 /* XEN_DOMCTL_vuart_op */
 struct xen_domctl_vuart_op {
 #define XEN_DOMCTL_VUART_OP_INIT  0
@@ -1209,6 +1220,7 @@ struct xen_domctl {
 #define XEN_DOMCTL_vuart_op                      81
 #define XEN_DOMCTL_get_cpu_policy                82
 #define XEN_DOMCTL_set_cpu_policy                83
+#define XEN_DOMCTL_vrtc_op                       82
 #define XEN_DOMCTL_gdbsx_guestmemio            1000
 #define XEN_DOMCTL_gdbsx_pausevcpu             1001
 #define XEN_DOMCTL_gdbsx_unpausevcpu           1002
@@ -1269,6 +1281,7 @@ struct xen_domctl {
         struct xen_domctl_monitor_op        monitor_op;
         struct xen_domctl_psr_alloc         psr_alloc;
         struct xen_domctl_vuart_op          vuart_op;
+        struct xen_domctl_vrtc_op           vrtc_op;
         uint8_t                             pad[128];
     } u;
 };
