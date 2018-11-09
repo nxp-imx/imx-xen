@@ -254,7 +254,7 @@ libxl_checkpointed_stream = Enumeration("checkpointed_stream", [
 
 libxl_vrtc_type = Enumeration("vrtc_type", [
     (0, "unknown"),
-    (1, "rtc_pl031"),
+    (1, "pl031"),
     ])
 
 libxl_vuart_type = Enumeration("vuart_type", [
