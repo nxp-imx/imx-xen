@@ -54,9 +54,6 @@ static void pl031_update(PL031State *s)
 {
     struct domain *d = vrtc_domain(s);
 
-    ASSERT(spin_is_locked(&s->lock));
-
-    gdprintk(XENLOG_ERR, "TODO\n");
     if (s->is & s->im)
         vgic_inject_irq(d, d->vcpu[0], s->irq, 1);
 }
@@ -65,9 +62,11 @@ static void pl031_interrupt(void * opaque)
 {
     PL031State *s = (PL031State *)opaque;
 
+    spin_lock(&s->lock);
     s->is = 1;
     gdprintk(XENLOG_INFO, "Alarm raised\n");
     pl031_update(s);
+    spin_unlock(&s->lock);
 }
 
 static uint32_t pl031_get_count(PL031State *s)
@@ -88,9 +87,12 @@ static void pl031_set_alarm(PL031State *s)
     gdprintk(XENLOG_INFO, "Alarm set in %ud ticks\n", ticks);
     if (ticks == 0) {
         stop_timer(&s->timer);
-        pl031_interrupt(s);
+	s->is = 1;
+        pl031_update(s);
     } else {
+        spin_unlock(&s->lock);
         set_timer(&s->timer, NOW() + (int64_t)ticks * NANOSECONDS_PER_SECOND);
+        spin_lock(&s->lock);
     }
 }
 
@@ -238,6 +240,7 @@ int domain_vpl031_init(struct domain *d)
 
     spin_lock_init(&s->lock);
 
+    spin_lock(&s->lock);
     register_mmio_handler(d, &vrtc_mmio_handler, GUEST_PL031_BASE, 0x1000, s);
     s->base = GUEST_PL031_BASE;
     s->d = d;
@@ -249,6 +252,7 @@ int domain_vpl031_init(struct domain *d)
         get_localtime_us(d) / USEC_PER_SEC;
 
     init_timer(&s->timer, pl031_interrupt, s, smp_processor_id());
+    spin_unlock(&s->lock);
 
     return 0;
 }
