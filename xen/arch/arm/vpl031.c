@@ -228,9 +228,12 @@ void domain_vpl031_deinit(struct domain *d)
 {
     PL031State *s = &d->arch.vrtc;
 
-    spin_barrier(&s->lock);
+    if (s->irq == GUEST_VPL031_SPI)
+    {
+        spin_barrier(&s->lock);
 
-    kill_timer(&s->timer);
+        kill_timer(&s->timer);
+    }
 }
 
 int domain_vpl031_init(struct domain *d)
