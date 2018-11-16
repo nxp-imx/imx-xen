@@ -1294,6 +1294,18 @@ static int handle_node(struct domain *d, struct kernel_info *kinfo,
                "WARNING: Path %s is reserved, skip the node as we may re-use the path.\n",
                path);
 
+    /*
+     * No need nc_x as on QM domu, because QM on Domu enabled smmu, and VPU need x permission
+     * but on 8QXP, VPU is in Dom0, no SMMU, no x needed
+     */
+
+    /*
+     * reserved-memory ranges should be mapped as normal memory in the
+     * p2m.
+     */
+    if ( !strcmp(dt_node_name(node), "reserved-memory") )
+        p2mt = p2m_ram_rw;
+
     res = handle_device(d, kinfo, node, p2mt);
     if ( res)
         return res;
