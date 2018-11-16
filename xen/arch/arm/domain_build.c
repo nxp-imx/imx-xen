@@ -1312,6 +1312,13 @@ static int handle_node(struct domain *d, struct kernel_info *kinfo,
     if ( !strcmp(dt_node_name(node), "reserved-memory") )
         p2mt = p2m_ram_rw;
 
+    if ( !strcmp(dt_node_name(node), "decoder_boot_mem") ||
+         !strcmp(dt_node_name(node), "encoder_boot_mem") ||
+         !strcmp(dt_node_name(node), "decoder_rpc_mem") ||
+         !strcmp(dt_node_name(node), "encoder_rpc_mem") ) {
+        p2mt = p2m_mmio_direct_nc;
+    }
+
     res = handle_device(d, kinfo, node, p2mt);
     if ( res)
         return res;
