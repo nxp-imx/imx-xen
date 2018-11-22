@@ -20,6 +20,7 @@
 #include <asm/platform.h>
 #include <asm/psci.h>
 #include <asm/setup.h>
+#include <asm/tee/tee.h>
 #include <asm/cpufeature.h>
 
 #include <xen/irq.h>
@@ -2235,6 +2236,12 @@ int __init construct_dom0(struct domain *d)
     /* Now that we are done restore the original p2m and current. */
     set_current(saved_current);
     p2m_restore_state(saved_current);
+
+#if 0
+    /* Enable TEE */
+    tee_enable(d);
+#endif
+
 
     discard_initial_modules();
 

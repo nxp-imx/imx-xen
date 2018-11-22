@@ -31,6 +31,7 @@
 #include <asm/platform.h>
 #include <asm/procinfo.h>
 #include <asm/regs.h>
+#include <asm/tee/tee.h>
 #include <asm/vfp.h>
 #include <asm/vgic.h>
 #include <asm/vtimer.h>
@@ -902,6 +903,9 @@ int domain_relinquish_resources(struct domain *d)
          * allocated via a DOMCTL call XEN_DOMCTL_vrtc_op.
          */
         domain_vpl031_deinit(d);
+
+        /* Free TEE mediator resources */
+        tee_domain_destroy(d);
 
         d->arch.relmem = RELMEM_xen;
         /* Fallthrough */
