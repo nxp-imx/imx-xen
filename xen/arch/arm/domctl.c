@@ -13,6 +13,7 @@
 #include <xen/sched.h>
 #include <xen/types.h>
 #include <xsm/xsm.h>
+#include <asm-arm/tee/tee.h>
 #include <public/domctl.h>
 
 void arch_get_domain_info(const struct domain *d,
@@ -216,6 +217,15 @@ long arch_do_domctl(struct xen_domctl *domctl, struct domain *d,
 
         return rc;
     }
+    case XEN_DOMCTL_tee_op:
+        switch ( domctl->u.tee_op.cmd )
+        {
+        case XEN_DOMCTL_TEE_OP_ENABLE:
+            return tee_enable(d);
+
+        default:
+            return -EINVAL;
+        }
     default:
     {
         int rc;
