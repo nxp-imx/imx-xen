@@ -1104,6 +1104,12 @@ struct xen_domctl_vuart_op {
                                  */
 };
 
+/* XEN_DOMCTL_tee_op */
+struct xen_domctl_tee_op {
+#define XEN_DOMCTL_TEE_OP_ENABLE  0
+    uint32_t cmd;               /* XEN_DOMCTL_TEE_OP_ */
+};
+
 struct xen_domctl {
     uint32_t cmd;
 #define XEN_DOMCTL_createdomain                   1
@@ -1184,6 +1190,7 @@ struct xen_domctl {
 #define XEN_DOMCTL_set_gnttab_limits             80
 #define XEN_DOMCTL_vuart_op                      81
 #define XEN_DOMCTL_vrtc_op                       82
+#define XEN_DOMCTL_tee_op                        83
 #define XEN_DOMCTL_gdbsx_guestmemio            1000
 #define XEN_DOMCTL_gdbsx_pausevcpu             1001
 #define XEN_DOMCTL_gdbsx_unpausevcpu           1002
@@ -1246,6 +1253,7 @@ struct xen_domctl {
         struct xen_domctl_psr_alloc         psr_alloc;
         struct xen_domctl_set_gnttab_limits set_gnttab_limits;
         struct xen_domctl_vuart_op          vuart_op;
+        struct xen_domctl_tee_op            tee_op;
         struct xen_domctl_vrtc_op           vrtc_op;
         uint8_t                             pad[128];
     } u;
