@@ -26,6 +26,7 @@
 
 static spinlock_t dtdevs_lock = SPIN_LOCK_UNLOCKED;
 
+extern int platform_assign_dev(struct domain *d, u8 devfn, struct dt_device_node *dev, u32 flag);
 int iommu_assign_dt_device(struct domain *d, struct dt_device_node *dev)
 {
     int rc = -EBUSY;
@@ -47,6 +48,8 @@ int iommu_assign_dt_device(struct domain *d, struct dt_device_node *dev)
 
     if ( rc )
         goto fail;
+
+    platform_assign_dev(d, 0, dev, 0);
 
     list_add(&dev->domain_list, &hd->dt_devices);
     dt_device_set_used_by(dev, d->domain_id);
@@ -104,6 +107,7 @@ int iommu_dt_domain_init(struct domain *d)
     return 0;
 }
 
+extern int platform_deassign_dev(struct domain *d, struct dt_device_node *dev);
 int iommu_release_dt_devices(struct domain *d)
 {
     const struct domain_iommu *hd = dom_iommu(d);
@@ -122,6 +126,7 @@ int iommu_release_dt_devices(struct domain *d)
                     dt_node_full_name(dev), d->domain_id);
             return rc;
         }
+        platform_deassign_dev(d, dev);
     }
 
     return 0;
