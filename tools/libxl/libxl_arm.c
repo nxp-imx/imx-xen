@@ -1203,6 +1203,14 @@ int libxl__arch_build_dom_finish(libxl__gc *gc,
         }
     }
 
+    if (libxl_defbool_val(info->tee)) {
+        ret = xc_dom_tee_enable(CTX->xch, dom->guest_domid);
+        if (ret < 0) {
+            rc = ERROR_FAIL;
+            LOG(ERROR, "xc_dom_tee_enable failed\n");
+        }
+    }
+
     if (info->arch_arm.vuart != LIBXL_VUART_TYPE_SBSA_UART) {
         rc = 0;
         goto out;
