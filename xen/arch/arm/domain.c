@@ -719,6 +719,7 @@ void arch_domain_destroy(struct domain *d)
 
 void arch_domain_shutdown(struct domain *d)
 {
+    arch_iommu_domain_destroy(d);
 }
 
 void arch_domain_pause(struct domain *d)
