@@ -366,6 +366,14 @@ static void do_sgi(struct cpu_user_regs *regs, enum gic_sgi sgi)
     case GIC_SGI_CALL_FUNCTION:
         smp_call_function_interrupt();
         break;
+    case GIC_SGI_TRUSTY_SGI:
+	/*
+	 * Ignore SGI15 for Trusty, this is because trusty still
+	 * not ready for GICv3. Current workaround is to directly ignore
+	 * this sgi. When Trusty is ready to use GICv3, this could
+	 * be removed.
+	 */
+	break;
     default:
         panic("Unhandled SGI %d on CPU%d\n", sgi, smp_processor_id());
         break;
