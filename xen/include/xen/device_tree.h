@@ -347,6 +347,7 @@ const void *dt_get_property(const struct dt_device_node *np,
 const struct dt_property *dt_find_property(const struct dt_device_node *np,
                                            const char *name, u32 *lenp);
 
+struct dt_device_node *dt_find_node_by_phandle(dt_phandle handle);
 
 /**
  * dt_property_read_u32 - Helper to read a u32 property.
