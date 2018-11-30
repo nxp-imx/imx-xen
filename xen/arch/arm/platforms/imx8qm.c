@@ -447,12 +447,6 @@ static int imx8qm_domain_destroy(struct domain *d)
     if (i == QM_NUM_DOMAIN)
         return 0;
 
-    for (i = 0; i < QM_NUM_DOMAIN; i++)
-    {
-        if (rsrc_sid[i].domain_id == d->domain_id)
-		memset(&rsrc_sid[i], 0, sizeof(rsrc_sid[0]));
-    }
-
     if (imx8qm_doms[i].partition_id)
     {
         sc_rm_partition_free(mu_ipcHandle, imx8qm_doms[i].partition_id);
@@ -460,6 +454,12 @@ static int imx8qm_domain_destroy(struct domain *d)
         sci_err = sc_pm_set_resource_power_mode_all(mu_ipcHandle, imx8qm_doms[i].partition_id, SC_PM_PW_MODE_OFF, SC_R_LAST);
         if (sci_err != SC_ERR_NONE)
     	    printk("off partition %d err %d\n", imx8qm_doms[i].partition_id, sci_err);
+    }
+
+    for (i = 0; i < QM_NUM_DOMAIN; i++)
+    {
+        if (rsrc_sid[i].domain_id == d->domain_id)
+		memset(&rsrc_sid[i], 0, sizeof(rsrc_sid[0]));
     }
 
     return 0;
