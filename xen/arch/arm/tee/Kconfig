@@ -1,0 +1,4 @@
+config TRUSTY
+       bool "Enable TRUSTY mediator"
+       default n
+       depends on TEE
