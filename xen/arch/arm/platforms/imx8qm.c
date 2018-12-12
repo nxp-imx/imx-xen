@@ -68,6 +68,7 @@ struct imx8qm_domain {
     u32 pads[512];
     /* Each i.MX8QM domain has such a gpio_dom entry */
     struct gpio_dom gpio_dom;
+    int *magic_num;
 };
 
 #define QM_NUM_DOMAIN	8
@@ -469,6 +470,7 @@ int platform_deassign_dev(struct domain *d, struct dt_device_node *dev)
 {
     int i, j;
     sc_err_t sci_err;
+    bool ignore_power_off = false;
 
     if (!dt_machine_is_compatible("fsl,imx8qm"))
     {
@@ -491,11 +493,31 @@ int platform_deassign_dev(struct domain *d, struct dt_device_node *dev)
     if (!imx8qm_doms[i].partition_id)
 	    return 0;
 
-    sci_err = sc_pm_set_resource_power_mode_all(mu_ipcHandle, imx8qm_doms[i].partition_id, SC_PM_PW_MODE_OFF, SC_R_LAST);
-    if (sci_err != SC_ERR_NONE)
-	    printk("off partition %d err %d\n", imx8qm_doms[i].partition_id, sci_err);
+    if (mfn_eq(gfn_to_mfn(d, GUEST_RAM0_BASE >> PAGE_SHIFT), INVALID_MFN) )
+    {
+        printk("no valid guest ram0 base mfn\n");
+    }
+    else
+    {
+        imx8qm_doms[i].magic_num = mfn_to_virt(gfn_to_mfn(d, GUEST_RAM0_BASE >> PAGE_SHIFT));
+        if (imx8qm_doms[i].magic_num)
+        {
+            if (*imx8qm_doms[i].magic_num == 0xF53535F5)
+            {
+                    *imx8qm_doms[i].magic_num = 0;
+		    ignore_power_off = true;
+            }
+	}
+    }
 
-    printk("let's shutdown the domain resources\n");
+    if (!ignore_power_off)
+    {
+        sci_err = sc_pm_set_resource_power_mode_all(mu_ipcHandle, imx8qm_doms[i].partition_id, SC_PM_PW_MODE_OFF, SC_R_LAST);
+        if (sci_err != SC_ERR_NONE)
+                printk("off partition %d err %d\n", imx8qm_doms[i].partition_id, sci_err);
+
+        printk("let's shutdown the domain resources\n");
+    }
     printk("partition id %d; domain_id %d\n", imx8qm_doms[i].partition_id, d->domain_id);
 
     imx8qm_doms[i].domain_id = 0xFFFF;
