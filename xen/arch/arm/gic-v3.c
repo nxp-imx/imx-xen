@@ -826,8 +826,12 @@ static int gicv3_cpu_init(void)
     priority = (GIC_PRI_IPI << 24 | GIC_PRI_IPI << 16 | GIC_PRI_IPI << 8 |
                 GIC_PRI_IPI);
     for (i = 0; i < NR_GIC_SGI; i += 4)
+    {
         writel_relaxed(priority,
                 GICD_RDIST_SGI_BASE + GICR_IPRIORITYR0 + (i / 4) * 4);
+        writel_relaxed(0xffffffff,
+                GICD_RDIST_SGI_BASE + GICR_ICACTIVER0 + (i / 4) * 4);
+    }
 
     priority = (GIC_PRI_IRQ << 24 | GIC_PRI_IRQ << 16 | GIC_PRI_IRQ << 8 |
                 GIC_PRI_IRQ);
