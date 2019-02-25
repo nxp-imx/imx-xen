@@ -322,6 +322,20 @@ void pm_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 RPC_SIZE(msg) = 2;
             }
             break;
+        case PM_FUNC_GET_RESET_PART :
+            {
+                uint8_t result;
+                uint8_t pt = 0;
+
+                result = sc_pm_get_reset_part(ipc, &pt);
+
+                P2V_PT(ipc, &pt);
+
+                RPC_R8(msg) = result;
+                RPC_U8(msg, 0) = pt;
+                RPC_SIZE(msg) = 2;
+            }
+            break;
         case PM_FUNC_BOOT :
             {
                 uint8_t result;
@@ -365,6 +379,19 @@ void pm_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 RPC_SIZE(msg) = 1;
             }
             break;
+        case PM_FUNC_REBOOT_CONTINUE :
+            {
+                uint8_t result;
+                uint8_t pt = RPC_U8(msg, 0);
+
+                V2P_PT(ipc, &pt);
+
+                result = sc_pm_reboot_continue(ipc, pt);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
         case PM_FUNC_CPU_START :
             {
                 uint8_t result;
@@ -375,6 +402,31 @@ void pm_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 V2P_RESOURCE(ipc, &resource);
 
                 result = sc_pm_cpu_start(ipc, resource, enable, address);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case PM_FUNC_CPU_RESET :
+            {
+                uint64_t address = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+                uint16_t resource = RPC_U16(msg, 8);
+
+                V2P_RESOURCE(ipc, &resource);
+
+                pm_cpu_reset(ipc, resource, address);
+
+                RPC_SIZE(msg) = 0;
+            }
+            break;
+        case PM_FUNC_IS_PARTITION_STARTED :
+            {
+                int8_t result;
+                uint8_t pt = RPC_U8(msg, 0);
+
+                V2P_PT(ipc, &pt);
+
+                result = sc_pm_is_partition_started(ipc, pt);
 
                 RPC_R8(msg) = result;
                 RPC_SIZE(msg) = 1;

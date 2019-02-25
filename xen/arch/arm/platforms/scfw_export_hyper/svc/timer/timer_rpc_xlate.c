@@ -262,6 +262,38 @@ void timer_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 RPC_SIZE(msg) = 1;
             }
             break;
+        case TIMER_FUNC_SET_SYSCTR_ALARM :
+            {
+                uint8_t result;
+                uint64_t ticks = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+
+                result = sc_timer_set_sysctr_alarm(ipc, ticks);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case TIMER_FUNC_SET_SYSCTR_PERIODIC_ALARM :
+            {
+                uint8_t result;
+                uint64_t ticks = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+
+                result = sc_timer_set_sysctr_periodic_alarm(ipc, ticks);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case TIMER_FUNC_CANCEL_SYSCTR_ALARM :
+            {
+                uint8_t result;
+
+                result = sc_timer_cancel_sysctr_alarm(ipc);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
         default :
             {
                 RPC_SIZE(msg) = 1;
