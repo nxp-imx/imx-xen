@@ -347,7 +347,7 @@ sc_err_t sc_rm_move_all(sc_ipc_t ipc, sc_rm_pt_t pt_src, sc_rm_pt_t pt_dst,
  * ASSERT if the partition si secure and NEGATE if it is not, and
  * masters will defaulted to SMMU bypass. Access permissions will reset
  * to SEC_RW for the owning partition only for secure partitions, FULL for
- * non-secure. DEfault is no access by other partitions.
+ * non-secure. Default is no access by other partitions.
  *
  * Return errors:
  * - SC_ERR_NOACCESS if caller's partition is restricted,
@@ -468,7 +468,8 @@ sc_err_t sc_rm_set_master_sid(sc_ipc_t ipc, sc_rsrc_t resource,
  * - SC_ERR_LOCKED if the \a pt is confidential and the caller isn't \a pt
  *
  * This function configures how the HW isolation will restrict access to a
- * peripheral based on the attributes of a transaction from bus master.
+ * peripheral based on the attributes of a transaction from bus master. It
+ * also allows the access permissions of SC_R_SYSTEM to be set.
  */
 sc_err_t sc_rm_set_peripheral_permissions(sc_ipc_t ipc, sc_rsrc_t resource,
     sc_rm_pt_t pt, sc_rm_perm_t perm);
@@ -484,6 +485,23 @@ sc_err_t sc_rm_set_peripheral_permissions(sc_ipc_t ipc, sc_rsrc_t resource,
  * If \a resource is out of range then SC_FALSE is returned.
  */
 sc_bool_t sc_rm_is_resource_owned(sc_ipc_t ipc, sc_rsrc_t resource);
+
+/*!
+ * This function is used to get the owner of a resource.
+ *
+ * @param[in]     ipc         IPC handle
+ * @param[in]     resource    resource to check
+ * @param[out]    pt          pointer to return owning partition
+ *
+ * @return Returns a boolean (SC_TRUE if the resource is a bus master).
+ *
+ * Return errors:
+ * - SC_PARM if arguments out of range or invalid
+ *
+ * If \a resource is out of range then SC_ERR_PARM is returned.
+ */
+sc_err_t sc_rm_get_resource_owner(sc_ipc_t ipc, sc_rsrc_t resource,
+    sc_rm_pt_t *pt);
 
 /*!
  * This function is used to test if a resource is a bus master.
@@ -585,6 +603,32 @@ sc_err_t sc_rm_memreg_alloc(sc_ipc_t ipc, sc_rm_mr_t *mr,
  */
 sc_err_t sc_rm_memreg_split(sc_ipc_t ipc, sc_rm_mr_t mr,
     sc_rm_mr_t *mr_ret, sc_faddr_t addr_start, sc_faddr_t addr_end);
+
+/*!
+ * This function requests that the SC fragment a memory region.
+ *
+ * @param[in]     ipc         IPC handle
+ * @param[out]    mr_ret      return handle for new region; used for
+ *                            subsequent function calls
+ *                            associated with this region
+ * @param[in]     addr_start  start address of region (physical)
+ * @param[in]     addr_end    end address of region (physical)
+ *
+ * @return Returns an error code (SC_ERR_NONE = success).
+ *
+ * Return errors:
+ * - SC_ERR_LOCKED if caller's partition is locked,
+ * - SC_ERR_PARM if the new memory region spans multiple existing regions,
+ * - SC_ERR_NOACCESS if caller's partition does not own the memory containing
+ *   the new region,
+ * - SC_ERR_UNAVAILABLE if memory region table is full (no more allocation
+ *   space)
+ *
+ * This function finds the memory region containing the address range.
+ * It then splits it as required and returns the extracted region.
+ */
+sc_err_t sc_rm_memreg_frag(sc_ipc_t ipc, sc_rm_mr_t *mr_ret,
+    sc_faddr_t addr_start, sc_faddr_t addr_end);
 
 /*!
  * This function frees a memory region.

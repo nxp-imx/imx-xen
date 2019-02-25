@@ -297,6 +297,23 @@ void rm_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 RPC_SIZE(msg) = 1;
             }
             break;
+        case RM_FUNC_GET_RESOURCE_OWNER :
+            {
+                uint8_t result;
+                uint16_t resource = RPC_U16(msg, 0);
+                uint8_t pt = 0;
+
+                V2P_RESOURCE(ipc, &resource);
+
+                result = sc_rm_get_resource_owner(ipc, resource, &pt);
+
+                P2V_PT(ipc, &pt);
+
+                RPC_R8(msg) = result;
+                RPC_U8(msg, 0) = pt;
+                RPC_SIZE(msg) = 2;
+            }
+            break;
         case RM_FUNC_IS_RESOURCE_MASTER :
             {
                 int8_t result;
@@ -372,6 +389,25 @@ void rm_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 V2P_ADDR(ipc, &addr_end);
 
                 result = sc_rm_memreg_split(ipc, mr, &mr_ret, addr_start, addr_end);
+
+                P2V_MR(ipc, &mr_ret);
+
+                RPC_R8(msg) = result;
+                RPC_U8(msg, 0) = mr_ret;
+                RPC_SIZE(msg) = 2;
+            }
+            break;
+        case RM_FUNC_MEMREG_FRAG :
+            {
+                uint8_t result;
+                uint64_t addr_start = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+                uint64_t addr_end = ((uint64_t) RPC_U32(msg, 8) << 32) | RPC_U32(msg, 12);
+                uint8_t mr_ret = 0;
+
+                V2P_ADDR(ipc, &addr_start);
+                V2P_ADDR(ipc, &addr_end);
+
+                result = sc_rm_memreg_frag(ipc, &mr_ret, addr_start, addr_end);
 
                 P2V_MR(ipc, &mr_ret);
 

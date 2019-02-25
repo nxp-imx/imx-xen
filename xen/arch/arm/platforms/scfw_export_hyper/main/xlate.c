@@ -60,7 +60,7 @@ void sc_rpc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
     if (RPC_SIZE(msg) == 0)
     {
         RPC_VER(msg) = SC_RPC_VERSION;
-        RPC_SIZE(msg) = 1;
+        RPC_SIZE(msg) = 1U;
         RPC_SVC(msg) = SC_RPC_SVC_RETURN;
         RPC_R8(msg) = SC_ERR_IPC;
 
@@ -71,7 +71,7 @@ void sc_rpc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
     if (RPC_VER(msg) != SC_RPC_VERSION)
     {
         RPC_VER(msg) = SC_RPC_VERSION;
-        RPC_SIZE(msg) = 1;
+        RPC_SIZE(msg) = 1U;
         RPC_SVC(msg) = SC_RPC_SVC_RETURN;
         RPC_R8(msg) = SC_ERR_VERSION;
 
@@ -100,12 +100,13 @@ void sc_rpc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
             irq_xlate(ipc, msg);
             return;
         default :
+            ; /* Intentional empty default */
             break;
     }
 
     /* Service not found */
     RPC_VER(msg) = SC_RPC_VERSION;
-    RPC_SIZE(msg) = 1;
+    RPC_SIZE(msg) = 1U;
     RPC_SVC(msg) = SC_RPC_SVC_RETURN;
     RPC_R8(msg) = SC_ERR_NOTFOUND;
 }

@@ -181,9 +181,9 @@ void misc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
         case MISC_FUNC_SECO_FORWARD_LIFECYCLE :
             {
                 uint8_t result;
-                uint32_t lifecycle = RPC_U32(msg, 0);
+                uint32_t change = RPC_U32(msg, 0);
 
-                result = sc_misc_seco_forward_lifecycle(ipc, lifecycle);
+                result = sc_misc_seco_forward_lifecycle(ipc, change);
 
                 RPC_R8(msg) = result;
                 RPC_SIZE(msg) = 1;
@@ -212,6 +212,97 @@ void misc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 RPC_U32(msg, 0) = version;
                 RPC_U32(msg, 4) = commit;
                 RPC_SIZE(msg) = 3;
+            }
+            break;
+        case MISC_FUNC_SECO_CHIP_INFO :
+            {
+                uint8_t result;
+                uint32_t uid_l = 0;
+                uint32_t uid_h = 0;
+                uint16_t lc = 0;
+                uint16_t monotonic = 0;
+
+                result = sc_misc_seco_chip_info(ipc, &lc, &monotonic, &uid_l, &uid_h);
+
+                RPC_U32(msg, 0) = uid_l;
+                RPC_U32(msg, 4) = uid_h;
+                RPC_U16(msg, 8) = lc;
+                RPC_U16(msg, 10) = monotonic;
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 4;
+            }
+            break;
+        case MISC_FUNC_SECO_ATTEST_MODE :
+            {
+                uint8_t result;
+                uint32_t mode = RPC_U32(msg, 0);
+
+                result = sc_misc_seco_attest_mode(ipc, mode);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case MISC_FUNC_SECO_ATTEST :
+            {
+                uint8_t result;
+                uint64_t nonce = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+
+                result = sc_misc_seco_attest(ipc, nonce);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case MISC_FUNC_SECO_GET_ATTEST_PKEY :
+            {
+                uint8_t result;
+                uint64_t addr = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+
+                V2P_ADDR(ipc, &addr);
+
+                result = sc_misc_seco_get_attest_pkey(ipc, addr);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case MISC_FUNC_SECO_GET_ATTEST_SIGN :
+            {
+                uint8_t result;
+                uint64_t addr = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+
+                V2P_ADDR(ipc, &addr);
+
+                result = sc_misc_seco_get_attest_sign(ipc, addr);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case MISC_FUNC_SECO_ATTEST_VERIFY :
+            {
+                uint8_t result;
+                uint64_t addr = ((uint64_t) RPC_U32(msg, 0) << 32) | RPC_U32(msg, 4);
+
+                V2P_ADDR(ipc, &addr);
+
+                result = sc_misc_seco_attest_verify(ipc, addr);
+
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 1;
+            }
+            break;
+        case MISC_FUNC_SECO_COMMIT :
+            {
+                uint8_t result;
+                uint32_t info = RPC_U32(msg, 0);
+
+                result = sc_misc_seco_commit(ipc, &info);
+
+                RPC_U32(msg, 0) = info;
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 2;
             }
             break;
         case MISC_FUNC_DEBUG_OUT :
@@ -243,6 +334,22 @@ void misc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
 
                 RPC_U32(msg, 0) = build;
                 RPC_U32(msg, 4) = commit;
+                RPC_SIZE(msg) = 3;
+            }
+            break;
+        case MISC_FUNC_API_VER :
+            {
+                uint16_t cl_maj = 0;
+                uint16_t cl_min = 0;
+                uint16_t sv_maj = 0;
+                uint16_t sv_min = 0;
+
+                misc_api_ver(ipc, &cl_maj, &cl_min, &sv_maj, &sv_min);
+
+                RPC_U16(msg, 0) = cl_maj;
+                RPC_U16(msg, 2) = cl_min;
+                RPC_U16(msg, 4) = sv_maj;
+                RPC_U16(msg, 6) = sv_min;
                 RPC_SIZE(msg) = 3;
             }
             break;
@@ -364,6 +471,18 @@ void misc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
                 RPC_SIZE(msg) = 2;
             }
             break;
+        case MISC_FUNC_GET_BOOT_TYPE :
+            {
+                uint8_t result;
+                uint8_t type = 0;
+
+                result = sc_misc_get_boot_type(ipc, &type);
+
+                RPC_R8(msg) = result;
+                RPC_U8(msg, 0) = type;
+                RPC_SIZE(msg) = 2;
+            }
+            break;
         case MISC_FUNC_GET_BUTTON_STATUS :
             {
                 sc_bool_t status = 0;
@@ -372,6 +491,34 @@ void misc_xlate(sc_ipc_t ipc, sc_rpc_msg_t *msg)
 
                 RPC_U8(msg, 0) = status;
                 RPC_SIZE(msg) = 2;
+            }
+            break;
+        case MISC_FUNC_ROMPATCH_CHECKSUM :
+            {
+                uint8_t result;
+                uint32_t checksum = 0;
+
+                result = sc_misc_rompatch_checksum(ipc, &checksum);
+
+                RPC_U32(msg, 0) = checksum;
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 2;
+            }
+            break;
+        case MISC_FUNC_BOARD_IOCTL :
+            {
+                uint8_t result;
+                uint32_t parm1 = RPC_U32(msg, 0);
+                uint32_t parm2 = RPC_U32(msg, 4);
+                uint32_t parm3 = RPC_U32(msg, 8);
+
+                result = sc_misc_board_ioctl(ipc, &parm1, &parm2, &parm3);
+
+                RPC_U32(msg, 0) = parm1;
+                RPC_U32(msg, 4) = parm2;
+                RPC_U32(msg, 8) = parm3;
+                RPC_R8(msg) = result;
+                RPC_SIZE(msg) = 4;
             }
             break;
         default :
