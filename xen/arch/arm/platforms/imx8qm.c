@@ -64,11 +64,16 @@ struct imx8qm_domain {
     u32 init_on_rsrcs[32];
     u32 num_rsrc;
     u32 rsrcs[SC_R_LAST];
+    u32 num_rsrc_m41_ap;
+    u32 m41_ap_rsrcs[SC_R_LAST];
     u32 num_pad;
     u32 pads[512];
+    u32 num_pad_m41_ap;
+    u32 m41_ap_pads[512];
     /* Each i.MX8QM domain has such a gpio_dom entry */
     struct gpio_dom gpio_dom;
     int *magic_num;
+    int android_auto;
 };
 
 #define QM_NUM_DOMAIN	8
@@ -147,6 +152,14 @@ static int imx8qm_system_init(void)
             }
 	    imx8qm_doms[i].partition_id = fdt32_to_cpu(*prop);
 	    printk("partition id %d\n", fdt32_to_cpu(*prop));
+
+            prop = dt_get_property(np, "android-auto", NULL);
+            if ( prop )
+            {
+		imx8qm_doms[i].android_auto = fdt32_to_cpu(*prop);
+		printk("Android Auto = %d\n", imx8qm_doms[i].android_auto);
+            }
+
             ret = dt_property_read_string(np, "domain_name", &name_str);
 	    if (ret)
             {
@@ -174,6 +187,15 @@ static int imx8qm_system_init(void)
                     panic("Reading rsrcs Error\n");
                 imx8qm_doms[i].num_rsrc = rsrc_size >> 2;
 	    }
+	    prop = dt_get_property(np, "rsrcs-m41-ap", &rsrc_size);
+	    if (prop)
+            {
+                if (!dt_property_read_u32_array(np, "rsrcs-m41-ap",
+                                                imx8qm_doms[i].m41_ap_rsrcs,
+                                                rsrc_size >> 2))
+                    panic("Reading rsrcs Error\n");
+                imx8qm_doms[i].num_rsrc_m41_ap = rsrc_size >> 2;
+	    }
 	    prop = dt_get_property(np, "pads", &rsrc_size);
 	    if (prop)
             {
@@ -182,6 +204,15 @@ static int imx8qm_system_init(void)
                                                 rsrc_size >> 2))
                     panic("Reading rsrcs Error\n");
                 imx8qm_doms[i].num_pad = rsrc_size >> 2;
+	    }
+	    prop = dt_get_property(np, "pads-m41-ap", &rsrc_size);
+	    if (prop)
+            {
+                if (!dt_property_read_u32_array(np, "pads-m41-ap",
+                                                imx8qm_doms[i].m41_ap_pads,
+                                                rsrc_size >> 2))
+                    panic("Reading rsrcs Error\n");
+                imx8qm_doms[i].num_pad_m41_ap = rsrc_size >> 2;
 	    }
 	    j = 0;
             while (!dt_parse_phandle_with_args(np, "gpios",
@@ -331,6 +362,20 @@ static const struct mmio_handler_ops lsio_mu1_mmio_handler = {
     .write = lsio_mu1_mmio_write,
 };
 
+static int element_in_array(struct imx8qm_domain *dom, uint32_t ele, uint32_t *array, uint32_t size)
+{
+	uint32_t i;
+
+	if (dom && dom->android_auto)
+	{
+		for (i = 0; i < size; i++)
+			if (ele == array[i])
+				return 1;
+	}
+
+	return 0;
+}
+
 static int imx8qm_domain_create(struct domain *d,
                                 struct xen_domctl_createdomain *config)
 {
@@ -406,6 +451,15 @@ static int imx8qm_domain_create(struct domain *d,
         {
             if (is_control_domain(current->domain))
             {
+		/* Currently owned by M41, ignore the assign in XEN, when android booting, M41 will assign the resource to android */
+                if (element_in_array(&imx8qm_doms[i], imx8qm_doms[i].rsrcs[j], imx8qm_doms[i].m41_ap_rsrcs, imx8qm_doms[i].num_rsrc_m41_ap))
+		{
+			if (!sc_rm_is_resource_owned(mu_ipcHandle, imx8qm_doms[i].rsrcs[j]))
+			{
+				printk("ignore assign resource %d\n", imx8qm_doms[i].rsrcs[j]);
+				continue;
+			}
+		}
                 sci_err = sc_rm_assign_resource(mu_ipcHandle, os_part, imx8qm_doms[i].rsrcs[j]);
 		if (sci_err != SC_ERR_NONE)
 			printk("assign resource error %d %d\n", imx8qm_doms[i].rsrcs[j], sci_err);
@@ -416,6 +470,15 @@ static int imx8qm_domain_create(struct domain *d,
         {
             if (is_control_domain(current->domain))
             {
+		/* Currently owned by M41, ignore the assign in XEN, when android booting, M41 will assign the pad to android */
+                if (element_in_array(&imx8qm_doms[i], imx8qm_doms[i].pads[j], imx8qm_doms[i].m41_ap_pads, imx8qm_doms[i].num_pad_m41_ap))
+		{
+			if (!sc_rm_is_pad_owned(mu_ipcHandle, imx8qm_doms[i].pads[j]))
+			{
+				printk("ignore assign pad %d\n", imx8qm_doms[i].pads[j]);
+				continue;
+			}
+		}
                 sci_err = sc_rm_assign_pad(mu_ipcHandle, os_part, imx8qm_doms[i].pads[j]);
 		if (sci_err != SC_ERR_NONE)
 			printk("assign pad error %d %d\n", imx8qm_doms[i].pads[j], sci_err);
@@ -524,34 +587,39 @@ int platform_deassign_dev(struct domain *d, struct dt_device_node *dev)
 
     if (imx8qm_doms[i].partition_id)
     {
+        for (j = 0; j < imx8qm_doms[i].num_rsrc_m41_ap; j++)
+        {
+                sci_err = sc_rm_assign_resource(mu_ipcHandle, 4, imx8qm_doms[i].m41_ap_rsrcs[j]);
+		if (sci_err != SC_ERR_NONE)
+			printk("assign resource error parent %d %d\n", imx8qm_doms[i].m41_ap_rsrcs[j], sci_err);
+        }
+
         for (j = 0; j < imx8qm_doms[i].num_rsrc; j++)
         {
+                if (element_in_array(&imx8qm_doms[i], imx8qm_doms[i].rsrcs[j], imx8qm_doms[i].m41_ap_rsrcs, imx8qm_doms[i].num_rsrc_m41_ap))
+		{
+			printk("2: ignore assign resource %d\n", imx8qm_doms[i].rsrcs[j]);
+			continue;
+		}
                 sci_err = sc_rm_assign_resource(mu_ipcHandle, imx8qm_doms[i].partition_id_parent, imx8qm_doms[i].rsrcs[j]);
 		if (sci_err != SC_ERR_NONE)
 			printk("assign resource error parent %d %d\n", imx8qm_doms[i].rsrcs[j], sci_err);
         }
-	/*
-	 * The following is only to remove SID for M4, in future need to develop new method
-	 * to differetiate case without M4.
-	 */
-        sci_err = sc_rm_assign_resource(mu_ipcHandle, imx8qm_doms[i].partition_id_parent, SC_R_M4_1_PID0);
-	if (sci_err != SC_ERR_NONE)
-		printk("assign resource error parent %d %d\n", SC_R_M4_1_PID0, sci_err);
-        sci_err = sc_rm_assign_resource(mu_ipcHandle, imx8qm_doms[i].partition_id_parent, SC_R_M4_1_PID1);
-	if (sci_err != SC_ERR_NONE)
-		printk("assign resource error parent %d %d\n", SC_R_M4_1_PID1, sci_err);
-        sci_err = sc_rm_assign_resource(mu_ipcHandle, imx8qm_doms[i].partition_id_parent, SC_R_M4_1_PID2);
-	if (sci_err != SC_ERR_NONE)
-		printk("assign resource error parent %d %d\n", SC_R_M4_1_PID2, sci_err);
-        sci_err = sc_rm_assign_resource(mu_ipcHandle, imx8qm_doms[i].partition_id_parent, SC_R_M4_1_PID3);
-	if (sci_err != SC_ERR_NONE)
-		printk("assign resource error parent %d %d\n", SC_R_M4_1_PID3, sci_err);
-        sci_err = sc_rm_assign_resource(mu_ipcHandle, imx8qm_doms[i].partition_id_parent, SC_R_M4_1_PID4);
-	if (sci_err != SC_ERR_NONE)
-		printk("assign resource error parent %d %d\n", SC_R_M4_1_PID4, sci_err);
+
+        for (j = 0; j < imx8qm_doms[i].num_pad_m41_ap; j++)
+        {
+                sci_err = sc_rm_assign_pad(mu_ipcHandle, 4, imx8qm_doms[i].m41_ap_pads[j]);
+		if (sci_err != SC_ERR_NONE)
+			printk("assign pad error parent %d %d\n", imx8qm_doms[i].m41_ap_pads[j], sci_err);
+        }
 
         for (j = 0; j < imx8qm_doms[i].num_pad; j++)
         {
+                if (element_in_array(&imx8qm_doms[i], imx8qm_doms[i].pads[j], imx8qm_doms[i].m41_ap_pads, imx8qm_doms[i].num_pad_m41_ap))
+		{
+			printk("2: ignore assign pad %d\n", imx8qm_doms[i].pads[j]);
+			continue;
+		}
                 sci_err = sc_rm_assign_pad(mu_ipcHandle, imx8qm_doms[i].partition_id_parent, imx8qm_doms[i].pads[j]);
 		if (sci_err != SC_ERR_NONE)
 			printk("assign pad error parent %d %d\n", imx8qm_doms[i].pads[j], sci_err);
@@ -562,6 +630,16 @@ int platform_deassign_dev(struct domain *d, struct dt_device_node *dev)
         imx8qm_doms[i].partition_id = 0;
     }
 
+    /* Android Auto */
+    if (imx8qm_doms[i].android_auto)
+    {
+	uint32_t parm1 = 1;
+	uint32_t parm2 = 0;
+	uint32_t parm3 = 0;
+	sci_err = sc_misc_board_ioctl(mu_ipcHandle, &parm1, &parm2, &parm3);
+	if (sci_err != SC_ERR_NONE)
+		printk("board ioctl failed %d\n", sci_err);
+    }
 
     for (i = 0; i < QM_NUM_DOMAIN; i++)
     {
