@@ -51,8 +51,10 @@ void machine_restart(unsigned int delay_millisecs)
     while ( (num_online_cpus() > 1) && (timeout-- > 0) )
         mdelay(1);
 
+#if 0
     /* This is mainly for PSCI-0.2, which does not return if success. */
     call_psci_system_reset();
+#endif
 
     /* Alternative reset procedure */
     while ( 1 )
