@@ -23,6 +23,7 @@
 #include <asm/io.h>
 #include <asm/imx8.h>
 #include <asm/sci.h>
+#include <asm/psci.h>
 #include <asm/p2m.h>
 #include <asm/platform.h>
 #include <asm/platforms/imx8qm.h>
@@ -263,7 +264,14 @@ static int imx8qm_specific_mapping(struct domain *d)
 
 static void imx8qm_system_reset(void)
 {
-    /* Add PSCI interface */
+    int i;
+    for (i = 0; i < QM_NUM_DOMAIN; i++)
+    {
+        if (imx8qm_doms[i].partition_id)
+            sc_rm_partition_free(mu_ipcHandle, imx8qm_doms[i].partition_id);
+    }
+    /* This is mainly for PSCI-0.2, which does not return if success. */
+    call_psci_system_reset();
 }
 
 static void imx8qm_system_off(void)
