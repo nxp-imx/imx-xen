@@ -564,13 +564,13 @@ int platform_deassign_dev(struct domain *d, struct dt_device_node *dev)
     if (!imx8qm_doms[i].partition_id)
 	    return 0;
 
-    if (mfn_eq(gfn_to_mfn(d, GUEST_RAM0_BASE >> PAGE_SHIFT), INVALID_MFN) )
+    if (mfn_eq(gfn_to_mfn(d, gaddr_to_gfn(GUEST_RAM0_BASE)), INVALID_MFN) )
     {
         printk("no valid guest ram0 base mfn\n");
     }
     else
     {
-        imx8qm_doms[i].magic_num = mfn_to_virt(gfn_to_mfn(d, GUEST_RAM0_BASE >> PAGE_SHIFT));
+        imx8qm_doms[i].magic_num = mfn_to_virt(mfn_x(gfn_to_mfn(d, gaddr_to_gfn(GUEST_RAM0_BASE))));
         if (imx8qm_doms[i].magic_num)
         {
             if (*imx8qm_doms[i].magic_num == 0xF53535F5)
