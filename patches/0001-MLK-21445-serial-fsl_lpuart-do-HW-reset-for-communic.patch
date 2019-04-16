@@ -1,0 +1,117 @@
+From 6c6c6d774aa9d982f8599492baaf12b2544c3e16 Mon Sep 17 00:00:00 2001
+From: Fugang Duan <fugang.duan@nxp.com>
+Date: Fri, 12 Apr 2019 18:06:29 +0800
+Subject: [PATCH] MLK-21445 serial: fsl_lpuart: do HW reset for communication
+ port
+
+Do HW reset for communication port after the port is registered
+if the UART controller support the feature.
+
+Do partition reset with LPUART's power on, LPUART registers will
+keep the previous status, like on i.MX8QM platform,  which is not
+expected action, so reset the HW is required.
+
+Currently, only i.MX7ULP and i.MX8QM LPUART controllers include
+global register that support HW reset.
+
+Tested-by: Robin Gong <yibin.gong@nxp.com>
+Tested-by: Peng Fan <peng.fan@nxp.com>
+Reviewed-by: Robby Cai <robby.cai@nxp.com>
+Signed-off-by: Fugang Duan <fugang.duan@nxp.com>
+(cherry picked from commit c2bc1f62ec28981462c9cb5ceac17134931ca19f)
+---
+ drivers/tty/serial/fsl_lpuart.c | 43 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+diff --git a/drivers/tty/serial/fsl_lpuart.c b/drivers/tty/serial/fsl_lpuart.c
+index 8363bfaab107..ace2c1a453c4 100644
+--- a/drivers/tty/serial/fsl_lpuart.c
++++ b/drivers/tty/serial/fsl_lpuart.c
+@@ -131,6 +131,11 @@
+ #define UARTFIFO		0x18
+ #define UARTWATER		0x1c
+ 
++/* 32-bit global registers only for i.MX7ulp/MX8x
++ * The driver only use the reset feature to reset HW.
++ */
++#define UART_GLOBAL		0x8
++
+ #define UARTBAUD_MAEN1		0x80000000
+ #define UARTBAUD_MAEN2		0x40000000
+ #define UARTBAUD_M10		0x20000000
+@@ -236,6 +241,10 @@
+ #define UARTWATER_TXWATER_OFF	0
+ #define UARTWATER_RXWATER_OFF	16
+ 
++#define UART_GLOBAL_RST		0x2
++#define RST_HW_MIN_US		20
++#define RST_HW_MAX_US		40
++
+ #define UARTFIFO_RXIDEN_RDRF	0x3
+ #define UARTCTRL_IDLECFG	0x7
+ #define FSL_UART_RX_DMA_BUFFER_SIZE	128
+@@ -250,6 +259,8 @@
+ 
+ struct lpuart_port {
+ 	struct uart_port	port;
++	void __iomem		*regbase;
++
+ 	struct clk		*ipg_clk;
+ 	struct clk		*per_clk;
+ 	unsigned int		txfifo_size;
+@@ -346,6 +357,33 @@ static inline void lpuart32_write(struct uart_port *port, u32 val,
+ 	}
+ }
+ 
++static int lpuart_hw_reset(struct lpuart_port *sport)
++{
++	struct uart_port *port = &sport->port;
++	struct device_node *np = sport->port.dev->of_node;
++	int ret;
++
++	if (uart_console(port))
++		return 0;
++
++	ret = clk_prepare_enable(sport->ipg_clk);
++	if (ret) {
++		dev_err(sport->port.dev, "failed to enable uart ipg clk: %d\n", ret);
++		return ret;
++	}
++
++	if (np && (of_device_is_compatible(np, "fsl,imx7ulp-lpuart") ||
++	    of_device_is_compatible(np, "fsl,imx8qm-lpuart"))) {
++		writel(UART_GLOBAL_RST, sport->regbase + UART_GLOBAL);
++		usleep_range(RST_HW_MIN_US, RST_HW_MAX_US);
++		writel(0, sport->regbase + UART_GLOBAL);
++		usleep_range(RST_HW_MIN_US, RST_HW_MAX_US);
++	}
++
++	clk_disable_unprepare(sport->ipg_clk);
++	return 0;
++}
++
+ static void lpuart_stop_tx(struct uart_port *port)
+ {
+ 	unsigned char temp;
+@@ -2420,6 +2458,7 @@ static int lpuart_probe(struct platform_device *pdev)
+ 	if (IS_ERR(sport->port.membase))
+ 		return PTR_ERR(sport->port.membase);
+ 
++	sport->regbase = sport->port.membase;
+ 	sport->port.membase += sdata->reg_off;
+ 	sport->port.mapbase = res->start + sdata->reg_off;
+ 	sport->port.dev = &pdev->dev;
+@@ -2503,6 +2542,10 @@ static int lpuart_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		goto failed_attach_port;
+ 
++	ret = lpuart_hw_reset(sport);
++	if (ret)
++		goto failed_attach_port;
++
+ 	sport->dma_tx_chan = dma_request_slave_channel(sport->port.dev, "tx");
+ 	if (!sport->dma_tx_chan)
+ 		dev_info(sport->port.dev, "NO DMA tx channel, run at cpu mode\n");
+-- 
+2.16.4
+
