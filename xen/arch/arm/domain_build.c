@@ -1108,6 +1108,11 @@ static int handle_device(struct domain *d, struct kernel_info *kinfo,
         return 0;
     }
 
+    if (!strcmp("/bus@54100000/imx8_gpu1_ss", dt_node_full_name(dev))) {
+        printk(XENLOG_WARNING "HACK: skip /bus@54100000/imx8_gpu1_ss setup!\n");
+        return 0;
+    }
+
     if ( dt_device_is_protected(dev) && need_mapping )
     {
         dt_dprintk("%s setup iommu\n", dt_node_full_name(dev));
