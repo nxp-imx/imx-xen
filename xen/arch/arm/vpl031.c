@@ -19,6 +19,7 @@
 #include <xen/timer.h>
 #include <xen/kernel.h>
 #include <asm/current.h>
+#include <asm/gic.h>
 #include <asm/vgic.h>
 #include <asm/vpl031.h>
 #include <xen/sched.h>
