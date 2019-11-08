@@ -1364,6 +1364,15 @@ static int __init handle_device(struct domain *d, struct dt_device_node *dev,
     dt_dprintk("%s passthrough = %d naddr = %u\n",
                dt_node_full_name(dev), need_mapping, naddr);
 
+    if (!strcmp("/imx8_gpu_ss", dt_node_full_name(dev))) {
+        printk(XENLOG_WARNING "HACK: skip /imx8_gpu_ss setup!\n");
+        return 0;
+    }
+    if (!strcmp("/bus@54100000/imx8_gpu1_ss", dt_node_full_name(dev))) {
+        printk(XENLOG_WARNING "HACK: skip /bus@54100000/imx8_gpu1_ss setup!\n");
+        return 0;
+    }
+
     if ( need_mapping )
     {
         dt_dprintk("Check if %s is behind the IOMMU and add it\n",
