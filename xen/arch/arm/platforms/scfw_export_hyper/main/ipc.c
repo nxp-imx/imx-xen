@@ -275,11 +275,25 @@ int __init imx8_mu_init(void)
 	int err;
 	sc_err_t sciErr;
 
-	np = dt_find_compatible_node(NULL, NULL, "fsl,imx8-mu");
+	np = dt_find_compatible_node(NULL, NULL, "fsl,imx8qm-mu");
 	if (!np)
 	{
-	    printk("No MU entry\n");
-	    return -ENOENT;
+            /* Kernel version lower than 5.4 use legacy compatible */
+	    np = dt_find_compatible_node(NULL, NULL, "fsl,imx8-mu");
+	    if (!np) {
+	        printk("No MU entry\n");
+	        return -ENOENT;
+	    }
+	} else {
+	    dt_for_each_compatible_node(NULL, np, NULL, "fsl,imx8qm-mu")
+            {
+                /*
+	         * The node marked, xen,no-map will be used by xen, and
+	         * mmio trapped for linux
+	         */
+                if (dt_get_property(np, "xen,no-map", NULL))
+                    break;
+            }
 	}
 
 	err = dt_device_get_address(np, 0, &addr, &size);
