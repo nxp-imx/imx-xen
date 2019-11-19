@@ -1373,6 +1373,11 @@ static int __init handle_device(struct domain *d, struct dt_device_node *dev,
         return 0;
     }
 
+    if (dt_get_property(dev, "xen,no-map", NULL)) {
+        printk(XENLOG_WARNING "HACK: skip %s setup!\n", dt_node_full_name(dev));
+	return 0;
+    }
+
     if ( need_mapping )
     {
         dt_dprintk("Check if %s is behind the IOMMU and add it\n",
