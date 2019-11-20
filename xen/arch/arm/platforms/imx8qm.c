@@ -668,6 +668,7 @@ int platform_assign_dev(struct domain *d, u8 devfn, struct dt_device_node *dev, 
     uint32_t i;
     sc_err_t sci_err;
     uint32_t index, rsrc_index;
+    int ret;
 
     if (!dt_machine_is_compatible("fsl,imx8qm"))
     {
@@ -726,8 +727,22 @@ int platform_assign_dev(struct domain *d, u8 devfn, struct dt_device_node *dev, 
 	}
 	if (!dt_property_read_u32(pnode, "reg", rsrcs))
         {
-            printk("%s no reg node\n", __func__);
-            return -1;
+            int count;
+
+            count = dt_parse_phandle_with_args(dev, "power-domains", "#power-domain-cells", -1, NULL);
+            if (count == 0)
+            {
+                printk("%s no reg node\n", __func__);
+                return -1;
+            }
+            for (i = 0; i < count; i++)
+            {
+                ret = dt_parse_phandle_with_args(dev, "power-domains", "#power-domain-cells", i, &masterspec);
+		if (ret >= 0)
+                    rsrcs[i] = masterspec.args[0];
+		else
+                    return ret;
+            }
 	}
 	rsrc_size = 4;
     }
