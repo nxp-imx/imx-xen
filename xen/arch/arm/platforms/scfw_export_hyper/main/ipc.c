@@ -274,8 +274,12 @@ int __init imx8_mu_init(void)
 	u64 size, addr;
 	int err;
 	sc_err_t sciErr;
+	char *compatible = "fsl,imx8qm-mu";
 
-	np = dt_find_compatible_node(NULL, NULL, "fsl,imx8qm-mu");
+	if (dt_machine_is_compatible("fsl,imx8qxp"))
+		compatible = "fsl,imx8qxp-mu";
+
+	np = dt_find_compatible_node(NULL, NULL, compatible);
 	if (!np)
 	{
             /* Kernel version lower than 5.4 use legacy compatible */
@@ -285,7 +289,7 @@ int __init imx8_mu_init(void)
 	        return -ENOENT;
 	    }
 	} else {
-	    dt_for_each_compatible_node(NULL, np, NULL, "fsl,imx8qm-mu")
+	    dt_for_each_compatible_node(NULL, np, NULL, compatible)
             {
                 /*
 	         * The node marked, xen,no-map will be used by xen, and

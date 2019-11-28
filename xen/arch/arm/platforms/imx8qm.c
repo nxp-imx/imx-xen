@@ -392,7 +392,7 @@ static int imx8qm_domain_create(struct domain *d,
 
     /* No need for control domain */
     if (d->domain_id == 0) {
-        if (dt_machine_is_compatible("fsl,imx8qm"))
+        if (dt_machine_is_compatible("fsl,imx8qm") || (dt_machine_is_compatible("fsl,imx8qxp")))
         {
 		/*
 		 * Since dom0 Linux use lsio_mu1, for scu firmware
