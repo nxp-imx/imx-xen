@@ -1364,6 +1364,11 @@ static int __init handle_device(struct domain *d, struct dt_device_node *dev,
     dt_dprintk("%s passthrough = %d naddr = %u\n",
                dt_node_full_name(dev), need_mapping, naddr);
 
+    if (dt_device_is_compatible(dev, "fsl,imx8-gpu-ss")) {
+        printk(XENLOG_WARNING "HACK: skip %s setup!\n", dt_node_full_name(dev));
+        return 0;
+    }
+
     if (!strcmp("/imx8_gpu_ss", dt_node_full_name(dev))) {
         printk(XENLOG_WARNING "HACK: skip /imx8_gpu_ss setup!\n");
         return 0;
