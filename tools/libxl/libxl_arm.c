@@ -912,6 +912,27 @@ static int copy_partial_fdt(libxl__gc *gc, void *fdt, void *pfdt)
         return r;
     }
 
+    int offset;
+    offset = fdt_next_node(pfdt, -1, NULL);
+    for (offset = fdt_next_node(pfdt, -1, NULL); offset >= 0;
+         offset = fdt_next_node(pfdt, offset, NULL)) {
+	    if (!fdt_getprop(pfdt, offset, "xen,passthrough", NULL))
+		    continue;
+            char path[92];
+	    /* Copy xen,passthrough node to domu */
+            r = fdt_get_path(pfdt, offset, path, sizeof(path));
+	    if (r != 0) {
+	            LOG(ERROR, "get path error");
+		    return r;
+	    }
+	    r = copy_node_by_path(gc, path, fdt, pfdt);
+	    LOG(DEBUG, "copy the node %s from the partial FDT", path);
+	    if (r < 0) {
+		    LOG(ERROR, "Can't copy the node %s from the partial FDT", path);
+		    return r;
+		    }
+    }
+
     return 0;
 }
 
