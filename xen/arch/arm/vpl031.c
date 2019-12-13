@@ -74,7 +74,7 @@ static uint32_t pl031_get_count(PL031State *s)
     struct domain *d = vrtc_domain(s);
     int64_t now = get_localtime_us(d);
 
-    return s->tick_offset + now / USEC_PER_SEC;
+    return s->tick_offset + now / USEC_PER_SEC - d->time_offset_seconds;
 }
 
 static void pl031_set_alarm(PL031State *s)
