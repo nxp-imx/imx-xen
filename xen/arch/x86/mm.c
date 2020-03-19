@@ -1557,7 +1557,7 @@ static int alloc_l2_table(struct page_info *page, unsigned long type)
         if ( rc == -EINTR && i )
         {
             page->nr_validated_ptes = i;
-            page->partial_flags = 0;
+            page->partial_flags = partial_flags;;
             rc = -ERESTART;
         }
         else if ( rc < 0 && rc != -EINTR )
@@ -1660,7 +1660,7 @@ static int alloc_l3_table(struct page_info *page)
         else if ( rc == -EINTR && i )
         {
             page->nr_validated_ptes = i;
-            page->partial_flags = 0;
+            page->partial_flags = partial_flags;
             rc = -ERESTART;
         }
         if ( rc < 0 )
@@ -1982,8 +1982,8 @@ static int free_l2_table(struct page_info *page)
     }
     else if ( rc == -EINTR && i < L2_PAGETABLE_ENTRIES - 1 )
     {
-        page->nr_validated_ptes = i + 1;
-        page->partial_flags = 0;
+        page->nr_validated_ptes = i + !(partial_flags & PTF_partial_set);
+        page->partial_flags = partial_flags;
         rc = -ERESTART;
     }
 
@@ -2030,8 +2030,8 @@ static int free_l3_table(struct page_info *page)
     }
     else if ( rc == -EINTR && i < L3_PAGETABLE_ENTRIES - 1 )
     {
-        page->nr_validated_ptes = i + 1;
-        page->partial_flags = 0;
+        page->nr_validated_ptes = i + !(partial_flags & PTF_partial_set);
+        page->partial_flags = partial_flags;
         rc = -ERESTART;
     }
     return rc > 0 ? 0 : rc;
@@ -2061,8 +2061,8 @@ static int free_l4_table(struct page_info *page)
     }
     else if ( rc == -EINTR && i < L4_PAGETABLE_ENTRIES - 1 )
     {
-        page->nr_validated_ptes = i + 1;
-        page->partial_flags = 0;
+        page->nr_validated_ptes = i + !(partial_flags & PTF_partial_set);
+        page->partial_flags = partial_flags;
         rc = -ERESTART;
     }
 
@@ -3059,8 +3059,8 @@ static int _get_page_type(struct page_info *page, unsigned long type,
         {
             page->nr_validated_ptes = 0;
             page->partial_flags = 0;
+            page->linear_pt_count = 0;
         }
-        page->linear_pt_count = 0;
         rc = alloc_page_type(page, type, preemptible);
     }
 
@@ -3142,40 +3142,36 @@ int put_old_guest_table(struct vcpu *v)
 int vcpu_destroy_pagetables(struct vcpu *v)
 {
     unsigned long mfn = pagetable_get_pfn(v->arch.guest_table);
-    struct page_info *page;
-    l4_pgentry_t *l4tab = NULL;
+    struct page_info *page = NULL;
     int rc = put_old_guest_table(v);
+    bool put_guest_table_user = false;
 
     if ( rc )
         return rc;
 
+    v->arch.cr3 = 0;
+
+    /*
+     * Get the top-level guest page; either the guest_table itself, for
+     * 64-bit, or the top-level l4 entry for 32-bit.  Either way, remove
+     * the reference to that page.
+     */
     if ( is_pv_32bit_vcpu(v) )
     {
-        l4tab = map_domain_page(_mfn(mfn));
+        l4_pgentry_t *l4tab = map_domain_page(_mfn(mfn));
+
         mfn = l4e_get_pfn(*l4tab);
-    }
-
-    if ( mfn )
-    {
-        page = mfn_to_page(_mfn(mfn));
-        if ( paging_mode_refcounts(v->domain) )
-            put_page(page);
-        else
-            rc = put_page_and_type_preemptible(page);
-    }
-
-    if ( l4tab )
-    {
-        if ( !rc )
-            l4e_write(l4tab, l4e_empty());
+        l4e_write(l4tab, l4e_empty());
         unmap_domain_page(l4tab);
     }
-    else if ( !rc )
+    else
     {
         v->arch.guest_table = pagetable_null();
+        put_guest_table_user = true;
+    }
 
-        /* Drop ref to guest_table_user (from MMUEXT_NEW_USER_BASEPTR) */
-        mfn = pagetable_get_pfn(v->arch.guest_table_user);
+    /* Free that page if non-zero */
+    do {
         if ( mfn )
         {
             page = mfn_to_page(_mfn(mfn));
@@ -3183,18 +3179,41 @@ int vcpu_destroy_pagetables(struct vcpu *v)
                 put_page(page);
             else
                 rc = put_page_and_type_preemptible(page);
+            mfn = 0;
         }
-        if ( !rc )
-            v->arch.guest_table_user = pagetable_null();
-    }
 
-    v->arch.cr3 = 0;
+        if ( !rc && put_guest_table_user )
+        {
+            /* Drop ref to guest_table_user (from MMUEXT_NEW_USER_BASEPTR) */
+            mfn = pagetable_get_pfn(v->arch.guest_table_user);
+            v->arch.guest_table_user = pagetable_null();
+            put_guest_table_user = false;
+        }
+    } while ( mfn );
 
     /*
-     * put_page_and_type_preemptible() is liable to return -EINTR. The
-     * callers of us expect -ERESTART so convert it over.
+     * If a "put" operation was interrupted, finish things off in
+     * put_old_guest_table() when the operation is restarted.
      */
-    return rc != -EINTR ? rc : -ERESTART;
+    switch ( rc )
+    {
+    case -EINTR:
+    case -ERESTART:
+        v->arch.old_guest_ptpg = NULL;
+        v->arch.old_guest_table = page;
+        v->arch.old_guest_table_partial = (rc == -ERESTART);
+        rc = -ERESTART;
+        break;
+    default:
+        /*
+         * Failure to 'put' a page may cause it to leak, but that's
+         * less bad than a crash.
+         */
+        ASSERT(rc == 0);
+        break;
+    }
+
+    return rc;
 }
 
 int new_guest_cr3(mfn_t mfn)

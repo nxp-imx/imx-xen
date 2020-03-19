@@ -9,13 +9,13 @@ for the definitions of the support status levels etc.
 
 # Release Support
 
-    Xen-Version: 4.13-rc
-    Initial-Release: n/a
-    Supported-Until: TBD
-    Security-Support-Until: Unreleased - not yet security-supported
+    Xen-Version: 4.13
+    Initial-Release: 2019-12-18
+    Supported-Until: 2021-06-18
+    Security-Support-Until: 2022-12-18
 
 Release Notes
-: <a href="https://wiki.xenproject.org/wiki/Xen_Project_X.YY_Release_Notes">RN</a>
+: <a href="https://wiki.xenproject.org/wiki/Xen_Project_4.13_Release_Notes">RN</a>
 
 # Feature Support
 
@@ -254,6 +254,14 @@ with each pool having the capability
 of using different schedulers and scheduling properties.
 
     Status: Supported
+
+### Core Scheduling
+
+Allows to group virtual cpus into virtual cores which are scheduled on the
+physical cores. This results in never running different guests at the same
+time on the same physical core.
+
+    Status, x86: Experimental
 
 ### Credit Scheduler
 

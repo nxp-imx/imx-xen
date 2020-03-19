@@ -18,6 +18,7 @@
 #include <xen/timer.h>
 #include <xen/smp.h>
 #include <xen/irq.h>
+#include <xen/pci_ids.h>
 #include <xen/softirq.h>
 #include <xen/efi.h>
 #include <xen/cpuidle.h>
@@ -367,12 +368,41 @@ static u64 read_hpet_count(void)
     return hpet_read32(HPET_COUNTER);
 }
 
-static s64 __init init_hpet(struct platform_timesource *pts)
+static int64_t __init init_hpet(struct platform_timesource *pts)
 {
-    u64 hpet_rate = hpet_setup(), start;
-    u32 count, target;
+    uint64_t hpet_rate, start;
+    uint32_t count, target;
 
-    if ( hpet_rate == 0 )
+    if ( hpet_address && strcmp(opt_clocksource, pts->id) &&
+         cpuidle_using_deep_cstate() )
+    {
+        if ( pci_conf_read16(PCI_SBDF(0, 0, 0x1f, 0),
+                             PCI_VENDOR_ID) == PCI_VENDOR_ID_INTEL )
+            switch ( pci_conf_read16(PCI_SBDF(0, 0, 0x1f, 0), PCI_DEVICE_ID) )
+            {
+            /* HPET on Bay Trail platforms will halt in deep C states. */
+            case 0x0f1c:
+            /* HPET on Cherry Trail platforms will halt in deep C states. */
+            case 0x229c:
+                hpet_address = 0;
+                break;
+            }
+
+        /*
+         * Some Coffee Lake platforms have a skewed HPET timer once the SoCs
+         * entered PC10.
+         */
+        if ( pci_conf_read16(PCI_SBDF(0, 0, 0, 0),
+                             PCI_VENDOR_ID) == PCI_VENDOR_ID_INTEL &&
+             pci_conf_read16(PCI_SBDF(0, 0, 0, 0),
+                             PCI_DEVICE_ID) == 0x3ec4 )
+            hpet_address = 0;
+
+        if ( !hpet_address )
+            printk("Disabling HPET for being unreliable\n");
+    }
+
+    if ( (hpet_rate = hpet_setup()) == 0 )
         return 0;
 
     pts->frequency = hpet_rate;
@@ -535,6 +565,7 @@ static struct platform_timesource __initdata plt_tsc =
  *
  * Xen clock source is a variant of TSC source.
  */
+static uint64_t xen_timer_last;
 
 static uint64_t xen_timer_cpu_frequency(void)
 {
@@ -556,9 +587,7 @@ static int64_t __init init_xen_timer(struct platform_timesource *pts)
     if ( !xen_guest )
         return 0;
 
-    pts->frequency = xen_timer_cpu_frequency();
-
-    return pts->frequency;
+    return xen_timer_cpu_frequency();
 }
 
 static always_inline uint64_t read_cycle(const struct vcpu_time_info *info,
@@ -580,7 +609,6 @@ static uint64_t read_xen_timer(void)
     uint32_t version;
     uint64_t ret;
     uint64_t last;
-    static uint64_t last_value;
 
     do {
         version = info->version & ~1;
@@ -596,20 +624,27 @@ static uint64_t read_xen_timer(void)
 
     /* Maintain a monotonic global value */
     do {
-        last = read_atomic(&last_value);
+        last = read_atomic(&xen_timer_last);
         if ( ret < last )
             return last;
-    } while ( unlikely(cmpxchg(&last_value, last, ret) != last) );
+    } while ( unlikely(cmpxchg(&xen_timer_last, last, ret) != last) );
 
     return ret;
+}
+
+static void resume_xen_timer(struct platform_timesource *pts)
+{
+    write_atomic(&xen_timer_last, 0);
 }
 
 static struct platform_timesource __initdata plt_xen_timer =
 {
     .id = "xen",
     .name = "XEN PV CLOCK",
+    .frequency = 1000000000ULL,
     .read_counter = read_xen_timer,
     .init = init_xen_timer,
+    .resume = resume_xen_timer,
     .counter_bits = 63,
 };
 #endif
@@ -827,10 +862,16 @@ u64 stime2tsc(s_time_t stime)
 
 void cstate_restore_tsc(void)
 {
+    struct cpu_time *t = &this_cpu(cpu_time);
+
     if ( boot_cpu_has(X86_FEATURE_NONSTOP_TSC) )
         return;
 
-    write_tsc(stime2tsc(read_platform_stime(NULL)));
+    t->stamp.master_stime = read_platform_stime(NULL);
+    t->stamp.local_tsc = stime2tsc(t->stamp.master_stime);
+    t->stamp.local_stime = t->stamp.master_stime;
+
+    write_tsc(t->stamp.local_tsc);
 }
 
 /***************************************************************************

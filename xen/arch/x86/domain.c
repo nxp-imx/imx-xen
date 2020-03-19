@@ -454,9 +454,6 @@ void arch_vcpu_destroy(struct vcpu *v)
     xfree(v->arch.msrs);
     v->arch.msrs = NULL;
 
-    if ( !is_idle_domain(v->domain) )
-        vpmu_destroy(v);
-
     if ( is_hvm_vcpu(v) )
         hvm_vcpu_destroy(v);
     else
@@ -2049,6 +2046,25 @@ static int relinquish_memory(
                     goto out;
                 case -ERESTART:
                     page_list_add(page, list);
+                    /*
+                     * PGT_partial holds a type ref and a general ref.
+                     * If we came in with PGT_partial set, then we 1)
+                     * don't need to grab an extra type count, and 2)
+                     * do need to drop the extra page ref we grabbed
+                     * at the top of the loop.  If we didn't come in
+                     * with PGT_partial set, we 1) do need to drab an
+                     * extra type count, but 2) can transfer the page
+                     * ref we grabbed above to it.
+                     *
+                     * Note that we must increment type_info before
+                     * setting PGT_partial.  Theoretically it should
+                     * be safe to drop the page ref before setting
+                     * PGT_partial, but do it afterwards just to be
+                     * extra safe.
+                     */
+                    if ( !(x & PGT_partial) )
+                        page->u.inuse.type_info++;
+                    smp_wmb();
                     page->u.inuse.type_info |= PGT_partial;
                     if ( x & PGT_partial )
                         put_page(page);
@@ -2136,12 +2152,17 @@ int domain_relinquish_resources(struct domain *d)
 
     PROGRESS(vcpu_pagetables):
 
-        /* Drop the in-use references to page-table bases. */
+        /*
+         * Drop the in-use references to page-table bases and clean
+         * up vPMU instances.
+         */
         for_each_vcpu ( d, v )
         {
             ret = vcpu_destroy_pagetables(v);
             if ( ret )
                 return ret;
+
+            vpmu_destroy(v);
         }
 
         if ( altp2m_active(d) )

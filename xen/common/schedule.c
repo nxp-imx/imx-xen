@@ -305,17 +305,26 @@ void vcpu_runstate_get(struct vcpu *v, struct vcpu_runstate_info *runstate)
 {
     spinlock_t *lock;
     s_time_t delta;
+    struct sched_unit *unit;
 
     rcu_read_lock(&sched_res_rculock);
 
-    lock = likely(v == current) ? NULL : unit_schedule_lock_irq(v->sched_unit);
+    /*
+     * Be careful in case of an idle vcpu: the assignment to a unit might
+     * change even with the scheduling lock held, so be sure to use the
+     * correct unit for locking in order to avoid triggering an ASSERT() in
+     * the unlock function.
+     */
+    unit = is_idle_vcpu(v) ? get_sched_res(v->processor)->sched_unit_idle
+                           : v->sched_unit;
+    lock = likely(v == current) ? NULL : unit_schedule_lock_irq(unit);
     memcpy(runstate, &v->runstate, sizeof(*runstate));
     delta = NOW() - runstate->state_entry_time;
     if ( delta > 0 )
         runstate->time[runstate->state] += delta;
 
     if ( unlikely(lock != NULL) )
-        unit_schedule_unlock_irq(lock, v->sched_unit);
+        unit_schedule_unlock_irq(lock, unit);
 
     rcu_read_unlock(&sched_res_rculock);
 }
@@ -2562,6 +2571,13 @@ static int cpu_schedule_callback(
     unsigned int cpu = (unsigned long)hcpu;
     int rc = 0;
 
+    /*
+     * All scheduler related suspend/resume handling needed is done in
+     * cpupool.c.
+     */
+    if ( system_state > SYS_STATE_active )
+        return NOTIFY_DONE;
+
     rcu_read_lock(&sched_res_rculock);
 
     /*
@@ -2589,8 +2605,7 @@ static int cpu_schedule_callback(
     switch ( action )
     {
     case CPU_UP_PREPARE:
-        if ( system_state != SYS_STATE_resume )
-            rc = cpu_schedule_up(cpu);
+        rc = cpu_schedule_up(cpu);
         break;
     case CPU_DOWN_PREPARE:
         rcu_read_lock(&domlist_read_lock);
@@ -2598,13 +2613,10 @@ static int cpu_schedule_callback(
         rcu_read_unlock(&domlist_read_lock);
         break;
     case CPU_DEAD:
-        if ( system_state == SYS_STATE_suspend )
-            break;
         sched_rm_cpu(cpu);
         break;
     case CPU_UP_CANCELED:
-        if ( system_state != SYS_STATE_resume )
-            cpu_schedule_down(cpu);
+        cpu_schedule_down(cpu);
         break;
     default:
         break;
