@@ -228,11 +228,21 @@
  */
 #define CSCHED2_CREDIT_INIT          MILLISECS(10)
 /*
+ * Minimum amount of credits VMs can have. Ideally, no VM would get
+ * close to this (unless a vCPU manages to execute for really long
+ * time uninterrupted). In case it happens, it makes no sense to
+ * track even deeper undershoots.
+ *
+ * NOTE: If making this smaller than -CSCHED2_CREDIT_INIT, adjust
+ * reset_credit() accordingly.
+ */
+#define CSCHED2_CREDIT_MIN           (-CSCHED2_CREDIT_INIT)
+/*
  * Amount of credit the idle units have. It never changes, as idle
  * units does not consume credits, and it must be lower than whatever
  * amount of credit 'regular' unit would end up with.
  */
-#define CSCHED2_IDLE_CREDIT          (-(1U<<30))
+#define CSCHED2_IDLE_CREDIT          (CSCHED2_CREDIT_MIN-1)
 /*
  * Carryover: How much "extra" credit may be carried over after
  * a reset.
@@ -776,10 +786,15 @@ static int get_fallback_cpu(struct csched2_unit *svc)
 static void t2c_update(struct csched2_runqueue_data *rqd, s_time_t time,
                           struct csched2_unit *svc)
 {
-    uint64_t val = time * rqd->max_weight + svc->residual;
+    int64_t val = time * rqd->max_weight + svc->residual;
 
     svc->residual = do_div(val, svc->weight);
-    svc->credit -= val;
+    /* Getting to lower credit than CSCHED2_CREDIT_MIN makes no sense. */
+    val = svc->credit - val;
+    if ( unlikely(val < CSCHED2_CREDIT_MIN) )
+        svc->credit = CSCHED2_CREDIT_MIN;
+    else
+        svc->credit = val;
 }
 
 static s_time_t c2t(struct csched2_runqueue_data *rqd, s_time_t credit, struct csched2_unit *svc)
@@ -1620,28 +1635,25 @@ static void reset_credit(const struct scheduler *ops, int cpu, s_time_t now,
 {
     struct csched2_runqueue_data *rqd = c2rqd(ops, cpu);
     struct list_head *iter;
-    int m;
+    int reset = CSCHED2_CREDIT_INIT;
 
     /*
      * Under normal circumstances, snext->credit should never be less
      * than -CSCHED2_MIN_TIMER.  However, under some circumstances, an
      * unit with low credits may be allowed to run long enough that
-     * its credits are actually less than -CSCHED2_CREDIT_INIT.
+     * its credits are actually much lower than that.
      * (Instances have been observed, for example, where an unit with
      * 200us of credit was allowed to run for 11ms, giving it -10.8ms
      * of credit.  Thus it was still negative even after the reset.)
      *
      * If this is the case for snext, we simply want to keep moving
-     * everyone up until it is in the black again.  This fair because
-     * none of the other units want to run at the moment.
-     *
-     * Rather than looping, however, we just calculate a multiplier,
-     * avoiding an integer division and multiplication in the common
-     * case.
+     * everyone up until it is in the black again. This means that,
+     * since CSCHED2_CREDIT_MIN is -CSCHED2_CREDIT_INIT, we need to
+     * actually add 2*CSCHED2_CREDIT_INIT.
      */
-    m = 1;
-    if ( snext->credit < -CSCHED2_CREDIT_INIT )
-        m += (-snext->credit) / CSCHED2_CREDIT_INIT;
+    ASSERT(snext->credit >= CSCHED2_CREDIT_MIN);
+    if ( unlikely(snext->credit == CSCHED2_CREDIT_MIN) )
+        reset += CSCHED2_CREDIT_INIT;
 
     list_for_each( iter, &rqd->svc )
     {
@@ -1672,15 +1684,7 @@ static void reset_credit(const struct scheduler *ops, int cpu, s_time_t now,
         }
 
         start_credit = svc->credit;
-
-        /*
-         * Add INIT * m, avoiding integer multiplication in the common case.
-         */
-        if ( likely(m==1) )
-            svc->credit += CSCHED2_CREDIT_INIT;
-        else
-            svc->credit += m * CSCHED2_CREDIT_INIT;
-
+        svc->credit += reset;
         /* "Clip" credits to max carryover */
         if ( svc->credit > CSCHED2_CREDIT_INIT + CSCHED2_CARRYOVER_MAX )
             svc->credit = CSCHED2_CREDIT_INIT + CSCHED2_CARRYOVER_MAX;
@@ -1692,19 +1696,18 @@ static void reset_credit(const struct scheduler *ops, int cpu, s_time_t now,
             struct {
                 unsigned unit:16, dom:16;
                 int credit_start, credit_end;
-                unsigned multiplier;
             } d;
             d.dom = svc->unit->domain->domain_id;
             d.unit = svc->unit->unit_id;
             d.credit_start = start_credit;
             d.credit_end = svc->credit;
-            d.multiplier = m;
             __trace_var(TRC_CSCHED2_CREDIT_RESET, 1,
                         sizeof(d),
                         (unsigned char *)&d);
         }
     }
 
+    ASSERT(snext->credit > 0);
     SCHED_STAT_CRANK(credit_reset);
 
     /* No need to resort runqueue, as everyone's order should be the same. */
@@ -3264,16 +3267,13 @@ csched2_runtime(const struct scheduler *ops, int cpu,
 static struct csched2_unit *
 runq_candidate(struct csched2_runqueue_data *rqd,
                struct csched2_unit *scurr,
-               int cpu, s_time_t now,
-               unsigned int *skipped)
+               int cpu, s_time_t now)
 {
     struct list_head *iter, *temp;
     struct sched_resource *sr = get_sched_res(cpu);
     struct csched2_unit *snext = NULL;
     struct csched2_private *prv = csched2_priv(sr->scheduler);
     bool yield = false, soft_aff_preempt = false;
-
-    *skipped = 0;
 
     if ( unlikely(is_idle_unit(scurr->unit)) )
     {
@@ -3368,12 +3368,9 @@ runq_candidate(struct csched2_runqueue_data *rqd,
                         (unsigned char *)&d);
         }
 
-        /* Only consider units that are allowed to run on this processor. */
+        /* Only consider vcpus that are allowed to run on this processor. */
         if ( !cpumask_test_cpu(cpu, svc->unit->cpu_hard_affinity) )
-        {
-            (*skipped)++;
             continue;
-        }
 
         /*
          * If an unit is meant to be picked up by another processor, and such
@@ -3382,7 +3379,6 @@ runq_candidate(struct csched2_runqueue_data *rqd,
         if ( svc->tickled_cpu != -1 && svc->tickled_cpu != cpu &&
              cpumask_test_cpu(svc->tickled_cpu, &rqd->tickled) )
         {
-            (*skipped)++;
             SCHED_STAT_CRANK(deferred_to_tickled_cpu);
             continue;
         }
@@ -3394,7 +3390,6 @@ runq_candidate(struct csched2_runqueue_data *rqd,
         if ( sched_unit_master(svc->unit) != cpu
              && snext->credit + CSCHED2_MIGRATE_RESIST > svc->credit )
         {
-            (*skipped)++;
             SCHED_STAT_CRANK(migrate_resisted);
             continue;
         }
@@ -3418,14 +3413,13 @@ runq_candidate(struct csched2_runqueue_data *rqd,
     {
         struct {
             unsigned unit:16, dom:16;
-            unsigned tickled_cpu, skipped;
+            unsigned tickled_cpu;
             int credit;
         } d;
         d.dom = snext->unit->domain->domain_id;
         d.unit = snext->unit->unit_id;
         d.credit = snext->credit;
         d.tickled_cpu = snext->tickled_cpu;
-        d.skipped = *skipped;
         __trace_var(TRC_CSCHED2_RUNQ_CANDIDATE, 1,
                     sizeof(d),
                     (unsigned char *)&d);
@@ -3457,7 +3451,6 @@ static void csched2_schedule(
     struct csched2_runqueue_data *rqd;
     struct csched2_unit * const scurr = csched2_unit(currunit);
     struct csched2_unit *snext = NULL;
-    unsigned int skipped_units = 0;
     bool tickled;
     bool migrated = false;
 
@@ -3535,7 +3528,7 @@ static void csched2_schedule(
         snext = csched2_unit(sched_idle_unit(sched_cpu));
     }
     else
-        snext = runq_candidate(rqd, scurr, sched_cpu, now, &skipped_units);
+        snext = runq_candidate(rqd, scurr, sched_cpu, now);
 
     /* If switching from a non-idle runnable unit, put it
      * back on the runqueue. */
@@ -3547,6 +3540,8 @@ static void csched2_schedule(
     /* Accounting for non-idle tasks */
     if ( !is_idle_unit(snext->unit) )
     {
+        int top_credit;
+
         /* If switching, remove this from the runqueue and mark it scheduled */
         if ( snext != scurr )
         {
@@ -3574,11 +3569,15 @@ static void csched2_schedule(
          *  2) no other unit with higher credits wants to run.
          *
          * Here, where we want to check for reset, we need to make sure the
-         * proper unit is being used. In fact, runqueue_candidate() may have
-         * not returned the first unit in the runqueue, for various reasons
+         * proper unit is being used. In fact, runq_candidate() may have not
+         * returned the first unit in the runqueue, for various reasons
          * (e.g., affinity). Only trigger a reset when it does.
          */
-        if ( skipped_units == 0 && snext->credit <= CSCHED2_CREDIT_RESET )
+        if ( list_empty(&rqd->runq) )
+            top_credit = snext->credit;
+        else
+            top_credit = max(snext->credit, runq_elem(rqd->runq.next)->credit);
+        if ( top_credit <= CSCHED2_CREDIT_RESET )
         {
             reset_credit(ops, sched_cpu, now, snext);
             balance_load(ops, sched_cpu, now);

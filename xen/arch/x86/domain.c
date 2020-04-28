@@ -141,7 +141,11 @@ static void idle_loop(void)
 
         /* Are we here for running vcpu context tasklets, or for idling? */
         if ( unlikely(tasklet_work_to_do(cpu)) )
+        {
             do_tasklet();
+            /* Livepatch work is always kicked off via a tasklet. */
+            check_for_livepatch_work();
+        }
         /*
          * Test softirqs twice --- first to see if should even try scrubbing
          * and then, after it is done, whether softirqs became pending
@@ -151,11 +155,6 @@ static void idle_loop(void)
                     !softirq_pending(cpu) )
             pm_idle();
         do_softirq();
-        /*
-         * We MUST be last (or before pm_idle). Otherwise after we get the
-         * softirq we would execute pm_idle (and sleep) and not patch.
-         */
-        check_for_livepatch_work();
     }
 }
 
@@ -539,7 +538,6 @@ int arch_domain_create(struct domain *d,
     INIT_PAGE_LIST_HEAD(&d->arch.relmem_list);
 
     spin_lock_init(&d->arch.e820_lock);
-    spin_lock_init(&d->arch.vtsc_lock);
 
     /* Minimal initialisation for the idle domain. */
     if ( unlikely(is_idle_domain(d)) )
@@ -665,6 +663,8 @@ int arch_domain_create(struct domain *d,
      * save/restore the 64-bit FIP/FDP and ignore the selectors.
      */
     d->arch.x87_fip_width = cpu_has_fpu_sel ? 0 : 8;
+
+    domain_cpu_policy_changed(d);
 
     return 0;
 
@@ -932,12 +932,18 @@ int arch_set_info_guest(
         }
     }
 
+    if ( v->vcpu_id == 0 && (c(vm_assist) & ~arch_vm_assist_valid_mask(d)) )
+        return -EINVAL;
+
     if ( is_hvm_domain(d) )
     {
         for ( i = 0; i < ARRAY_SIZE(v->arch.dr); ++i )
             v->arch.dr[i] = c(debugreg[i]);
         v->arch.dr6 = c(debugreg[6]);
         v->arch.dr7 = c(debugreg[7]);
+
+        if ( v->vcpu_id == 0 )
+            d->vm_assist = c.nat->vm_assist;
 
         hvm_set_info_guest(v);
         goto out;

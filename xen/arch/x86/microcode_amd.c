@@ -222,18 +222,18 @@ static enum microcode_match_result compare_patch(
 
     /* Both patches to compare are supposed to be applicable to local CPU. */
     ASSERT(microcode_fits(new->mc_amd) != MIS_UCODE);
-    ASSERT(microcode_fits(new->mc_amd) != MIS_UCODE);
+    ASSERT(microcode_fits(old->mc_amd) != MIS_UCODE);
 
     return compare_header(new_header, old_header);
 }
 
 static int apply_microcode(const struct microcode_patch *patch)
 {
-    uint32_t rev;
     int hw_err;
     unsigned int cpu = smp_processor_id();
     struct cpu_signature *sig = &per_cpu(cpu_sig, cpu);
     const struct microcode_header_amd *hdr;
+    uint32_t rev, old_rev = sig->rev;
 
     if ( !patch )
         return -ENOENT;
@@ -249,6 +249,7 @@ static int apply_microcode(const struct microcode_patch *patch)
 
     /* get patch id after patching */
     rdmsrl(MSR_AMD_PATCHLEVEL, rev);
+    sig->rev = rev;
 
     /*
      * Some processors leave the ucode blob mapping as UC after the update.
@@ -259,15 +260,14 @@ static int apply_microcode(const struct microcode_patch *patch)
     /* check current patch id and patch's id for match */
     if ( hw_err || (rev != hdr->patch_id) )
     {
-        printk(KERN_ERR "microcode: CPU%d update from revision "
-               "%#x to %#x failed\n", cpu, rev, hdr->patch_id);
+        printk(XENLOG_ERR
+               "microcode: CPU%u update rev %#x to %#x failed, result %#x\n",
+               cpu, old_rev, hdr->patch_id, rev);
         return -EIO;
     }
 
-    printk(KERN_WARNING "microcode: CPU%d updated from revision %#x to %#x\n",
-           cpu, sig->rev, hdr->patch_id);
-
-    sig->rev = rev;
+    printk(XENLOG_WARNING "microcode: CPU%u updated from revision %#x to %#x\n",
+           cpu, old_rev, rev);
 
     return 0;
 }
@@ -318,9 +318,19 @@ static int get_ucode_from_buffer_amd(
 static int install_equiv_cpu_table(
     struct microcode_amd *mc_amd,
     const void *data,
+    size_t size_left,
     size_t *offset)
 {
-    const struct mpbhdr *mpbuf = data + *offset + 4;
+    const struct mpbhdr *mpbuf;
+    const struct equiv_cpu_entry *eq;
+
+    if ( size_left < (sizeof(*mpbuf) + 4) ||
+         (mpbuf = data + *offset + 4,
+          size_left - sizeof(*mpbuf) - 4 < mpbuf->len) )
+    {
+        printk(XENLOG_WARNING "microcode: No space for equivalent cpu table\n");
+        return -EINVAL;
+    }
 
     *offset += mpbuf->len + CONT_HDR_SIZE;	/* add header length */
 
@@ -330,7 +340,9 @@ static int install_equiv_cpu_table(
         return -EINVAL;
     }
 
-    if ( mpbuf->len == 0 )
+    if ( mpbuf->len == 0 || mpbuf->len % sizeof(*eq) ||
+         (eq = (const void *)mpbuf->data,
+          eq[(mpbuf->len / sizeof(*eq)) - 1].installed_cpu) )
     {
         printk(KERN_ERR "microcode: Wrong microcode equivalent cpu table length\n");
         return -EINVAL;
@@ -433,7 +445,7 @@ static struct microcode_patch *cpu_request_microcode(const void *buf,
 
     current_cpu_id = cpuid_eax(0x00000001);
 
-    if ( *(const uint32_t *)buf != UCODE_MAGIC )
+    if ( bufsize < 4 || *(const uint32_t *)buf != UCODE_MAGIC )
     {
         printk(KERN_ERR "microcode: Wrong microcode patch file magic\n");
         error = -EINVAL;
@@ -463,21 +475,10 @@ static struct microcode_patch *cpu_request_microcode(const void *buf,
      */
     while ( offset < bufsize )
     {
-        error = install_equiv_cpu_table(mc_amd, buf, &offset);
+        error = install_equiv_cpu_table(mc_amd, buf, bufsize - offset, &offset);
         if ( error )
         {
             printk(KERN_ERR "microcode: installing equivalent cpu table failed\n");
-            break;
-        }
-
-        /*
-         * Could happen as we advance 'offset' early
-         * in install_equiv_cpu_table
-         */
-        if ( offset > bufsize )
-        {
-            printk(KERN_ERR "microcode: Microcode buffer overrun\n");
-            error = -EINVAL;
             break;
         }
 

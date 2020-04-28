@@ -364,7 +364,6 @@ struct arch_domain
     int tsc_mode;            /* see include/asm-x86/time.h */
     bool_t vtsc;             /* tsc is emulated (may change after migrate) */
     s_time_t vtsc_last;      /* previous TSC value (guarantee monotonicity) */
-    spinlock_t vtsc_lock;
     uint64_t vtsc_offset;    /* adjustment for save/restore/migrate */
     uint32_t tsc_khz;        /* cached guest khz for certain emulated or
                                 hardware TSC scaling cases */
@@ -628,6 +627,8 @@ struct guest_memory_policy
 void update_guest_memory_policy(struct vcpu *v,
                                 struct guest_memory_policy *policy);
 
+void domain_cpu_policy_changed(struct domain *d);
+
 bool update_runstate_area(struct vcpu *);
 bool update_secondary_system_time(struct vcpu *,
                                   struct vcpu_time_info *);
@@ -692,6 +693,25 @@ static inline void pv_inject_sw_interrupt(unsigned int vector)
 
     pv_inject_event(&event);
 }
+
+#define PV32_VM_ASSIST_MASK ((1UL << VMASST_TYPE_4gb_segments)        | \
+                             (1UL << VMASST_TYPE_4gb_segments_notify) | \
+                             (1UL << VMASST_TYPE_writable_pagetables) | \
+                             (1UL << VMASST_TYPE_pae_extended_cr3)    | \
+                             (1UL << VMASST_TYPE_architectural_iopl)  | \
+                             (1UL << VMASST_TYPE_runstate_update_flag))
+/*
+ * Various of what PV32_VM_ASSIST_MASK has isn't really applicable to 64-bit,
+ * but we can't make such requests fail all of the sudden.
+ */
+#define PV64_VM_ASSIST_MASK (PV32_VM_ASSIST_MASK                      | \
+                             (1UL << VMASST_TYPE_m2p_strict))
+#define HVM_VM_ASSIST_MASK  (1UL << VMASST_TYPE_runstate_update_flag)
+
+#define arch_vm_assist_valid_mask(d) \
+    (is_hvm_domain(d) ? HVM_VM_ASSIST_MASK \
+                      : is_pv_32bit_domain(d) ? PV32_VM_ASSIST_MASK \
+                                              : PV64_VM_ASSIST_MASK)
 
 #endif /* __ASM_DOMAIN_H__ */
 

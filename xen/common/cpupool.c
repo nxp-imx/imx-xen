@@ -465,7 +465,7 @@ static int cpupool_unassign_cpu_start(struct cpupool *c, unsigned int cpu)
         }
         rcu_read_unlock(&domlist_read_lock);
         if ( ret )
-            goto out;
+            goto out_rcu;
     }
     cpupool_moving_cpu = cpu;
     atomic_inc(&c->refcnt);
@@ -473,8 +473,9 @@ static int cpupool_unassign_cpu_start(struct cpupool *c, unsigned int cpu)
     cpumask_andnot(c->cpu_valid, c->cpu_valid, cpus);
     cpumask_and(c->res_valid, c->cpu_valid, &sched_res_mask);
 
-    rcu_read_unlock(&domlist_read_lock);
-out:
+ out_rcu:
+    rcu_read_unlock(&sched_res_rculock);
+ out:
     spin_unlock(&cpupool_lock);
 
     return ret;
@@ -614,7 +615,8 @@ static int cpupool_cpu_add(unsigned int cpu)
     get_sched_res(cpu)->cpupool = NULL;
 
     cpus = sched_get_opt_cpumask(cpupool0->gran, cpu);
-    if ( cpumask_subset(cpus, &cpupool_free_cpus) )
+    if ( cpumask_subset(cpus, &cpupool_free_cpus) &&
+         cpumask_weight(cpus) == cpupool_get_granularity(cpupool0) )
         ret = cpupool_assign_cpu_locked(cpupool0, cpu);
 
     rcu_read_unlock(&sched_res_rculock);

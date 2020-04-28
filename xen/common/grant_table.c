@@ -1032,7 +1032,7 @@ map_grant_ref(
     {
         if ( (rc = _set_status(shah, status, rd, rgt->gt_version, act,
                                op->flags & GNTMAP_readonly, 1,
-                               ld->domain_id) != GNTST_okay) )
+                               ld->domain_id)) != GNTST_okay )
             goto act_release_out;
 
         if ( !act->pin )
@@ -3583,8 +3583,7 @@ do_grant_table_op(
         rc = gnttab_copy(copy, count);
         if ( rc > 0 )
         {
-            rc = count - rc;
-            guest_handle_add_offset(copy, rc);
+            guest_handle_add_offset(copy, count - rc);
             uop = guest_handle_cast(copy, void);
         }
         break;
@@ -3651,6 +3650,9 @@ do_grant_table_op(
   out:
     if ( rc > 0 || opaque_out != 0 )
     {
+        /* Adjust rc, see gnttab_copy() for why this is needed. */
+        if ( cmd == GNTTABOP_copy )
+            rc = count - rc;
         ASSERT(rc < count);
         ASSERT((opaque_out & GNTTABOP_CMD_MASK) == 0);
         rc = hypercall_create_continuation(__HYPERVISOR_grant_table_op, "ihi",

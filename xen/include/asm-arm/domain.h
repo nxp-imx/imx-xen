@@ -68,9 +68,6 @@ struct arch_domain
 
     struct {
         uint64_t offset;
-    } phys_timer_base;
-    struct {
-        uint64_t offset;
     } virt_timer_base;
 
     struct vgic_dist vgic;
@@ -273,6 +270,8 @@ static inline void free_vcpu_guest_context(struct vcpu_guest_context *vgc)
 }
 
 static inline void arch_vcpu_block(struct vcpu *v) {}
+
+#define arch_vm_assist_valid_mask(d) (1UL << VMASST_TYPE_runstate_update_flag)
 
 #endif /* __ASM_DOMAIN_H__ */
 
