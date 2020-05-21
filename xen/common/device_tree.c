@@ -873,8 +873,8 @@ int dt_device_get_address(const struct dt_device_node *dev, unsigned int index,
 }
 
 
-int dt_for_each_range(const struct dt_device_node *dev,
-                      int (*cb)(const struct dt_device_node *,
+int dt_for_each_range(struct dt_device_node *dev,
+                      int (*cb)(struct dt_device_node *,
                                 u64 addr, u64 length,
                                 void *),
                       void *data)
@@ -1077,8 +1077,8 @@ unsigned int dt_number_of_address(const struct dt_device_node *dev)
     return (psize / onesize);
 }
 
-int dt_for_each_irq_map(const struct dt_device_node *dev,
-                        int (*cb)(const struct dt_device_node *,
+int dt_for_each_irq_map(struct dt_device_node *dev,
+                        int (*cb)(struct dt_device_node *,
                                   const struct dt_irq *,
                                   void *),
                         void *data)
@@ -1559,10 +1559,22 @@ bool_t dt_device_is_available(const struct dt_device_node *device)
     return 0;
 }
 
-bool_t dt_device_for_passthrough(const struct dt_device_node *device)
+bool_t dt_device_for_passthrough(struct dt_device_node *device)
 {
-    return (dt_find_property(device, "xen,passthrough", NULL) != NULL);
+    struct dt_device_node *node = device;
 
+    while (true)
+    {
+        if (!node)
+            return false;
+        if (dt_find_property(node, "xen,passthrough", NULL) != NULL)
+            return true;
+        if (node == dt_host)
+            return false;
+        node = node->parent;
+    }
+
+    return false;
 }
 
 static int __dt_parse_phandle_with_args(const struct dt_device_node *np,
