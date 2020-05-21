@@ -549,8 +549,8 @@ int dt_irq_translate(const struct dt_raw_irq *raw, struct dt_irq *out_irq);
  * @cb: Call back to call for each entry
  * @data: Caller data passed to callback
  */
-int dt_for_each_irq_map(const struct dt_device_node *dev,
-                        int (*cb)(const struct dt_device_node *,
+int dt_for_each_irq_map(struct dt_device_node *dev,
+                        int (*cb)(struct dt_device_node *,
                                   const struct dt_irq *,
                                   void *),
                         void *data);
@@ -561,8 +561,8 @@ int dt_for_each_irq_map(const struct dt_device_node *dev,
  * @cb: Call back to call for each entry
  * @data: Caller data passed to callback
  */
-int dt_for_each_range(const struct dt_device_node *dev,
-                      int (*cb)(const struct dt_device_node *,
+int dt_for_each_range(struct dt_device_node *dev,
+                      int (*cb)(struct dt_device_node *,
                                 u64 addr, u64 length,
                                 void *),
                       void *data);
@@ -623,7 +623,7 @@ bool_t dt_device_is_available(const struct dt_device_node *device);
  * Return true if the property "xen,passthrough" is present in the node,
  * false otherwise.
  */
-bool_t dt_device_for_passthrough(const struct dt_device_node *device);
+bool_t dt_device_for_passthrough(struct dt_device_node *device);
 
 /**
  * dt_match_node - Tell if a device_node has a matching of dt_device_match

@@ -474,7 +474,7 @@ fail:
 }
 
 static int __init write_properties(struct domain *d, struct kernel_info *kinfo,
-                                   const struct dt_device_node *node)
+                                   struct dt_device_node *node)
 {
     const char *bootargs = NULL;
     const struct dt_property *prop, *status = NULL;
@@ -1172,7 +1172,7 @@ int __init map_irq_to_domain(struct domain *d, unsigned int irq,
     return 0;
 }
 
-static int __init map_dt_irq_to_domain(const struct dt_device_node *dev,
+static int __init map_dt_irq_to_domain(struct dt_device_node *dev,
                                        const struct dt_irq *dt_irq,
                                        void *data)
 {
@@ -1203,7 +1203,7 @@ static int __init map_dt_irq_to_domain(const struct dt_device_node *dev,
     return 0;
 }
 
-static int __init map_range_to_domain(const struct dt_device_node *dev,
+static int __init map_range_to_domain(struct dt_device_node *dev,
                                       u64 addr, u64 len,
                                       void *data)
 {
@@ -1262,7 +1262,7 @@ static int __init map_range_to_domain(const struct dt_device_node *dev,
  * the child resources available to domain 0.
  */
 static int __init map_device_children(struct domain *d,
-                                      const struct dt_device_node *dev,
+                                      struct dt_device_node *dev,
                                       p2m_type_t p2mt)
 {
     struct map_range_data mr_data = { .d = d, .p2mt = p2mt };
@@ -1351,13 +1351,13 @@ static int __init handle_device_interrupts(struct domain *d,
  *  - Map the IRQs and iomem regions to DOM0
  */
 static int __init handle_device(struct domain *d, struct dt_device_node *dev,
-                                p2m_type_t p2mt)
+                                p2m_type_t p2mt, bool mapping)
 {
     unsigned int naddr;
     unsigned int i;
     int res;
     u64 addr, size;
-    bool need_mapping = !dt_device_for_passthrough(dev);
+    bool need_mapping = !dt_device_for_passthrough(dev) && mapping;
 
     naddr = dt_number_of_address(dev);
 
@@ -1445,7 +1445,7 @@ static int __init handle_device(struct domain *d, struct dt_device_node *dev,
 
 static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
                               struct dt_device_node *node,
-                              p2m_type_t p2mt)
+                              p2m_type_t p2mt, bool mapping)
 {
     static const struct dt_device_match skip_matches[] __initconst =
     {
@@ -1551,7 +1551,7 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
                "WARNING: Path %s is reserved, skip the node as we may re-use the path.\n",
                path);
 
-    res = handle_device(d, node, p2mt);
+    res = handle_device(d, node, p2mt, mapping);
     if ( res)
         return res;
 
@@ -1573,7 +1573,7 @@ static int __init handle_node(struct domain *d, struct kernel_info *kinfo,
 
     for ( child = node->child; child != NULL; child = child->sibling )
     {
-        res = handle_node(d, kinfo, child, p2mt);
+        res = handle_node(d, kinfo, child, p2mt, !dt_device_for_passthrough(node));
         if ( res )
             return res;
     }
@@ -2200,7 +2200,7 @@ static int __init prepare_dtb_hwdom(struct domain *d, struct kernel_info *kinfo)
 
     fdt_finish_reservemap(kinfo->fdt);
 
-    ret = handle_node(d, kinfo, dt_host, default_p2mt);
+    ret = handle_node(d, kinfo, dt_host, default_p2mt, true);
     if ( ret )
         goto err;
 
