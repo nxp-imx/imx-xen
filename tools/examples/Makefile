@@ -9,6 +9,7 @@ XEN_CONFIGS += xlexample.hvm
 XEN_CONFIGS += xlexample.pvlinux
 XEN_CONFIGS += xl.conf
 XEN_CONFIGS += cpupool
+XEN_CONFIGS += domu-imx8qm-mek-androidauto.cfg domu-imx8qm-mek.cfg
 
 XEN_CONFIGS += $(XEN_CONFIGS-y)
 
