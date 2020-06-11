@@ -109,7 +109,7 @@ config HARDEN_BRANCH_PREDICTOR
 
 config TEE
 	bool "Enable TEE mediators support"
-	default n
+	default y
 	help
 	  This option enables generic TEE mediators support. It allows guests
 	  to access real TEE via one of TEE mediators implemented in XEN.

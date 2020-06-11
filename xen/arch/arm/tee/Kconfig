@@ -11,7 +11,7 @@ config OPTEE
 
 config TRUSTY
 	bool "Enable Trusty mediator"
-	default n
+	default y
 	depends on TEE
 	help
 	  Enable the Trusty mediator. It allows DomU android use
