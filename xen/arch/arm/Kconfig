@@ -108,7 +108,7 @@ config HARDEN_BRANCH_PREDICTOR
 	  If unsure, say Y.
 
 config TEE
-	bool "Enable TEE mediators support" if EXPERT = "y"
+	bool "Enable TEE mediators support"
 	default n
 	help
 	  This option enables generic TEE mediators support. It allows guests
