@@ -280,7 +280,7 @@ enum gic_sgi {
     GIC_SGI_EVENT_CHECK = 0,
     GIC_SGI_DUMP_STATE  = 1,
     GIC_SGI_CALL_FUNCTION = 2,
-    GIC_SGI_TRUSTY_SGI = 15,
+    GIC_SGI_TRUSTY_SGI = 13,
 };
 
 /* SGI irq mode types */

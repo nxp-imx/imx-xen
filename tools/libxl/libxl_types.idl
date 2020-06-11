@@ -476,7 +476,8 @@ libxl_gic_version = Enumeration("gic_version", [
 
 libxl_tee_type = Enumeration("tee_type", [
     (0, "none"),
-    (1, "optee")
+    (1, "optee"),
+    (2, "trusty")
     ], init_val = "LIBXL_TEE_TYPE_NONE")
 
 libxl_rdm_reserve = Struct("rdm_reserve", [
