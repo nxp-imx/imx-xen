@@ -8,3 +8,12 @@ config OPTEE
 	  virtualization-enabled OP-TEE present. You can learn more
 	  about virtualization for OP-TEE at
 	  https://optee.readthedocs.io/architecture/virtualization.html
+
+config TRUSTY
+	bool "Enable Trusty mediator"
+	default n
+	depends on TEE
+	help
+	  Enable the Trusty mediator. It allows DomU android use
+	  trusty services. For a better solution, we might need
+	  to emulate secure world in a XEN VM.
