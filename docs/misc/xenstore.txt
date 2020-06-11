@@ -152,6 +152,15 @@ DIRECTORY		<path>|			<child-leaf-name>|*
 	leafnames.  The resulting children are each named
 	<path>/<child-leaf-name>.
 
+DIRECTORY_PART		<path>|<offset>		<gencnt>|<child-leaf-name>|*
+	Same as DIRECTORY, but to be used for children lists longer than
+	XENSTORE_PAYLOAD_MAX. Input are <path> and the byte offset into
+	the list of children to return. Return values are the generation
+	count <gencnt> of the node (to be used to ensure the node hasn't
+	changed between two reads: <gencnt> being the same for multiple
+	reads guarantees the node hasn't changed) and the list of children
+	starting at the specified <offset> of the complete list.
+
 GET_PERMS	 	<path>|			<perm-as-string>|+
 SET_PERMS		<path>|<perm-as-string>|+?
 	<perm-as-string> is one of the following
@@ -309,12 +318,32 @@ SET_TARGET		<domid>|<tdomid>|
 
 ---------- Miscellaneous ----------
 
-DEBUG			print|<string>|??	    sends <string> to debug log
-DEBUG			print|<thing-with-no-nul>   EINVAL
-DEBUG			check|??		    checks xenstored innards
-DEBUG			<anything-else|>	    no-op (future extension)
+CONTROL			<command>|[<parameters>|]
+	Send a control command <command> with optional parameters
+	(<parameters>) to Xenstore daemon.
 
-	These requests should not generally be used and may be
-	withdrawn in the future.
+	The set of commands and their semantics is implementation
+	specific and is likely to change from one Xen version to the
+	next.  Out-of-tree users will encounter compatibility issues.
 
+	Current commands are:
+	check
+		checks xenstored innards
+	log|on
+		turn xenstore logging on
+	log|off
+		turn xenstore logging off
+	logfile|<file-name>
+		log to specified file
+	memreport|[<file-name>]
+		print memory statistics to logfile (no <file-name>
+		specified) or to specific file
+	print|<string>
+		print <string> to syslog (xenstore runs as daemon) or
+		to console (xenstore runs as stubdom)
+	help			<supported-commands>
+		return list of supported commands for CONTROL
+
+DEBUG
+	Deprecated, now named CONTROL
 
