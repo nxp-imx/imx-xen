@@ -514,7 +514,7 @@ __maybe_unused static int virtio_pre(struct domain_ctx *ctx, struct cpu_user_reg
 #endif
 		    continue;
 		}
-                maddr = mfn_to_maddr(tmp) + pg_offset;
+                maddr = mfn_to_maddr(tmp);
                 *(paddr_t *)((void *)call->xen_virtio_addr[j] + sizeof(struct vring_desc) * k) = maddr;
 #ifdef TRUSTY_DEBUG
 		if (pg_offset)
@@ -1176,7 +1176,7 @@ static const struct tee_mediator_ops trusty_ops =
     .handle_call = trusty_handle_call,
 };
 
-REGISTER_TEE_MEDIATOR(trusty, "TRUSTY", XEN_DOMCTL_CONFIG_TEE_TRUSTY, &trusty_ops);
+REGISTER_TEE_MEDIATOR(optee, "OP-TEE", XEN_DOMCTL_CONFIG_TEE_OPTEE, &trusty_ops);
 
 /*
  * Local variables:
