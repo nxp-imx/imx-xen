@@ -234,6 +234,8 @@ void domain_vpl031_deinit(struct domain *d)
         spin_barrier(&s->lock);
 
         kill_timer(&s->timer);
+
+	vgic_free_virq(d, GUEST_VPL031_SPI);
     }
 }
 
