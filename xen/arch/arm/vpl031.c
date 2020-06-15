@@ -235,8 +235,9 @@ void domain_vpl031_deinit(struct domain *d)
 
         kill_timer(&s->timer);
 
-	vgic_free_virq(d, GUEST_VPL031_SPI);
     }
+
+    vgic_free_virq(d, GUEST_VPL031_SPI);
 }
 
 int domain_vpl031_init(struct domain *d)
@@ -259,6 +260,8 @@ int domain_vpl031_init(struct domain *d)
 
     init_timer(&s->timer, pl031_interrupt, s, smp_processor_id());
     spin_unlock(&s->lock);
+
+    vgic_reserve_virq(d, GUEST_VPL031_SPI);
 
     return 0;
 }
